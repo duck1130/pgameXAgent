@@ -74,6 +74,9 @@ print(not x)  # 非，將 True 變成 False，這裡輸出 False
 2. 次方 **
 3. 乘除 * / // %
 4. 加減 + -
+5. 比較 < <= > >= == !=
+6. 邏輯 and
+7. 邏輯 or
 """
 result1 = 2 + 3 * 4  # 先算 3*4=12，再加2，結果為14
 result2 = (2 + 3) * 4  # 先算2+3=5，再乘4，結果為20
@@ -148,3 +151,10 @@ print(bool([1, 2, 3]))  # 非空串列轉 bool，輸出 True
 # print(int("abc"))    # 字串 "abc" 不能轉成 int，會產生 ValueError
 # print(float("hi"))   # 字串 "hi" 不能轉成 float，會產生 ValueError
 # print(int("3.14"))   # 字串 "3.14" 不能直接轉 int，會產生 ValueError
+
+
+print("輸入開始")  # 開始輸入
+# input()是一個函數，可以讓使用者輸入資料
+A = input("請輸入一個數字：")  # 等待使用者輸入
+print(int(A) + 10)  # 將輸入的字串轉成整數並輸出
+print(type(A))  # 證明透過input()得到的A是字串型態
