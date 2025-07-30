@@ -302,6 +302,50 @@ class Player:
 
         return None
 
+    def place_building(
+        self, building_id: str, world_manager: "WorldManager"
+    ) -> Optional[str]:
+        """
+        放置建築物
+
+        Args:
+            building_id (str): 建築物ID
+            world_manager: 世界管理器
+
+        Returns:
+            Optional[str]: 放置結果訊息
+        """
+        if not self.inventory.has_item(building_id, 1):
+            return f"沒有{building_id}可以放置"
+
+        # 檢查放置位置是否有足夠空間
+        place_x = self.x + self.width + 20  # 在玩家右側放置
+        place_y = self.y
+
+        # 檢查位置是否被占用
+        nearby_objects = world_manager.get_nearby_objects(place_x, place_y, 40)
+        if nearby_objects:
+            return "此位置已被占用，無法放置"
+
+        # 消耗物品
+        self.inventory.remove_item(building_id, 1)
+
+        # 放置建築物
+        if building_id == "workbench":
+            from ..world.world_objects import Workbench
+
+            workbench = Workbench(place_x, place_y)
+            world_manager.add_object(workbench)
+            return "成功放置工作台！"
+        elif building_id == "furnace":
+            from ..world.world_objects import Furnace
+
+            furnace = Furnace(place_x, place_y)
+            world_manager.add_object(furnace)
+            return "成功放置熔爐！"
+
+        return "無法放置此物品"
+
     def consume_food(self, food_type: str = "food") -> bool:
         """
         消耗食物恢復飢餓值

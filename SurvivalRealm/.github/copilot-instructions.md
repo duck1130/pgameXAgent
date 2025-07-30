@@ -2,145 +2,138 @@
 
 ## 📋 Project Overview
 
-This is a **2D survival RPG game** built with Pygame, featuring modular architecture. Players collect resources, craft tools, and survive in a dynamically generated world.
+**Survival Realm** is a **2D survival RPG game** built with Pygame, featuring a modular architecture. Players collect resources, craft tools, and survive in a dynamically generated world. The codebase follows a config-driven design with centralized state management.
 
-## 🏗️ Architecture & Code Organization
+## 🏗️ Architecture & Core Patterns
 
-### Core Module Structure
+### Module Structure
 
 ```
 src/
-├── core/config.py          # Central config hub - ALL constants here
+├── core/config.py          # ALL game constants and configuration
 ├── entities/player.py      # Player class with SurvivalStats dataclass
-├── systems/               # Game systems (inventory, time)
-├── world/                 # World objects, managers
+├── systems/               # Game systems (inventory, time_manager)
+├── world/                 # World objects and world_manager
 └── ui/                    # User interface components
 ```
 
-### Key Architectural Patterns
+### Critical Architectural Patterns
 
-**Config-Driven Design**: All game parameters live in `src/core/config.py`:
+**Config-Driven Everything**: All constants live in `src/core/config.py`:
 
-- `WINDOW_CONFIG`, `PLAYER_CONFIG`, `SURVIVAL_STATS`
-- `ITEM_RECIPES`, `WORLD_OBJECTS`, `TOOL_EFFICIENCY`
-- Colors defined in `COLORS` dict, use descriptive names
+- Window, player, survival stats config dictionaries
+- `ITEM_RECIPES`, `WORLD_OBJECTS`, `TOOL_EFFICIENCY` define game mechanics
+- `COLORS` dict with descriptive keys like `"HEALTH"`, `"DANGER"`, `"UI_PANEL"`
 
-**Dataclass for Data Structures**: Use `@dataclass` for game data:
+**Manager Pattern**: Each system has a dedicated manager:
+
+- `WorldManager` - object spawning, cleanup, collision detection
+- `TimeManager` - day/night cycles, time progression
+- All managers implement `update(delta_time)` and `draw(screen)` methods
+
+**Dataclass for Game Data**: Use `@dataclass` for structured data:
 
 ```python
 @dataclass
 class SurvivalStats:
     health: float = 100.0
     hunger: float = 100.0
-    # Updates via delta_time in update() method
+    # Always updated via delta_time in update() method
 ```
 
-**Manager Pattern**: Centralized system management:
+## 🎯 State Management & Game Loop
 
-- `WorldManager` handles object spawning/cleanup
-- `TimeManager` controls day/night cycles
-- Each manager has `update(delta_time)` and `draw(screen)` methods
+### State System
 
-## 🎯 Development Conventions
-
-### State Management
+Game states defined as enum in `config.py`:
 
 ```python
-# Game states via enum in config.py
 class GameState(Enum):
     PLAYING = "playing"
     INVENTORY = "inventory"
     CRAFTING = "crafting"
-    # State switches in Game.handle_events()
+    SMELTING = "smelting"
 ```
+
+State transitions handled in `Game.handle_events()` via keyboard input.
 
 ### Game Loop Structure
 
 Standard pattern in `main.py Game.run()`:
 
-1. `handle_events()` - Process input
-2. `update(delta_time)` - Game logic
-3. `draw()` - Render everything
+1. `handle_events()` - Process input, state switches
+2. `update(delta_time)` - Update all systems with frame time
+3. `draw()` - Render based on current state
 4. `pygame.display.flip()`
 
-### Type Safety
+## 🛠️ Development Workflow
 
-- Use type hints extensively: `from typing import Optional, List, TYPE_CHECKING`
-- Import types conditionally to avoid circular imports
-
-## 🛠️ Key Integration Points
-
-### Adding New Items
-
-1. Define in `inventory.py ItemDatabase.items` dict
-2. Add recipe to `config.py ITEM_RECIPES` if craftable
-3. Update crafting logic in `main.py _craft_item()`
-
-### Adding World Objects
-
-1. Create class inheriting from `GameObject` in `world/world_objects.py`
-2. Implement `draw()` and `interact()` methods
-3. Add spawn config to `config.py WORLD_OBJECTS`
-4. Register in `WorldManager.create_random_object()`
-
-### UI Extensions
-
-- All UI rendering in `ui/user_interface.py`
-- Font handling: Use `UI_CONFIG["font_path"]` with fallbacks
-- Message system: `Game.add_message()` with auto-cleanup
-
-## 🔧 Development Workflow
-
-### Running the Game
+### Running & Testing
 
 ```bash
 cd SurvivalRealm
 python main.py
 ```
 
-### Common Tasks
+### Key Integration Points
 
-- **Balance tweaking**: Edit `config.py` values (no restart needed)
-- **Debug mode**: Add print statements in update loops
-- **New features**: Follow manager pattern, update config first
+**Adding Items**:
 
-### File Organization Rules
+1. Define in `inventory.py ItemDatabase.items` dict with ItemType enum
+2. Add crafting recipe to `config.py ITEM_RECIPES`
+3. Update crafting logic in `main.py _craft_item()`
 
-- **Never hardcode values** - use config.py constants
-- **Prefer composition over inheritance** for game objects
-- **Keep UI separate** from game logic
-- **Use descriptive naming**: `interaction_range` not `range`
+**Adding World Objects**:
 
-## 🎮 Game-Specific Knowledge
+1. Create class inheriting `GameObject` in `world/world_objects.py`
+2. Implement required `draw()` and `interact()` methods
+3. Add spawn configuration to `config.py WORLD_OBJECTS`
+4. Register in `WorldManager.create_random_object()`
 
-### Player Mechanics
+**UI Changes**: All rendering in `ui/user_interface.py`, uses font fallback system
 
-- Movement via WASD, speed controlled by `PLAYER_CONFIG["speed"]`
-- Survival stats decay over time in `SurvivalStats.update()`
-- Tool efficiency multipliers in `TOOL_EFFICIENCY`
+### Critical Conventions
 
-### Crafting System
+- **Never hardcode values** - use config.py constants exclusively
+- **Delta time everywhere** - all updates must use `delta_time` for frame independence
+- **Type safety**: Use `TYPE_CHECKING` imports to avoid circular dependencies
+- **Proximity checks**: Tools/crafting require distance calculations to workbench/furnace
 
-- Recipes defined as material dictionaries in `ITEM_RECIPES`
-- Crafting requires proximity to workbench (distance check)
-- Smelting uses furnace + fuel consumption logic
+## 🎮 Game-Specific Mechanics
+
+### Player System
+
+- Movement: WASD keys, speed from `PLAYER_CONFIG["speed"]`
+- Survival stats decay automatically in `SurvivalStats.update(delta_time)`
+- Equipment system: tools have efficiency multipliers in `TOOL_EFFICIENCY`
+- Interaction range: configurable via `PLAYER_CONFIG["interaction_range"]`
+
+### Crafting & Smelting
+
+- **Crafting**: Workbench proximity required (except basic workbench crafting)
+- **Smelting**: Furnace proximity + fuel consumption (coal/wood)
+- Recipes as material dictionaries: `{"wood": 3, "stone": 2}`
+- Resource validation before material consumption
 
 ### World Generation
 
-- Objects spawn randomly with `spawn_rate` from config
-- Safe zone around player prevents spawn overlap
-- Continuous spawning via timer in `WorldManager`
+- Continuous spawning system with timer in `WorldManager`
+- Safe zone around player prevents spawn conflicts
+- Each object type has spawn rate probability in config
+- Dynamic object cleanup when max count reached
 
-## 🐱 Code Style Notes
+## 🐱 Code Style & Debugging
 
-- Use emoji in comments and prints for personality
-- Descriptive variable names: `interaction_cooldown` not `cooldown`
-- Keep methods focused: separate `_handle_crafting()` from `_handle_smelting()`
-- Document complex calculations with inline comments
+- **Personality**: Use emoji in comments and console output
+- **Naming**: Descriptive variables (`interaction_cooldown` not `cooldown`)
+- **Method separation**: Split complex handlers (`_handle_crafting()` vs `_handle_smelting()`)
+- **Message system**: `Game.add_message()` for player feedback with auto-cleanup
+- **Font handling**: Graceful fallbacks for missing font files
 
-## 🚨 Common Gotchas
+## 🚨 Common Issues & Solutions
 
-- **Circular imports**: Use `TYPE_CHECKING` for cross-module references
-- **Delta time**: Always use `delta_time` for frame-independent updates
-- **Config changes**: Game needs restart for some config changes
-- **Font loading**: Handle missing fonts gracefully with fallbacks
+- **Circular imports**: Always use `TYPE_CHECKING` for cross-module type hints
+- **State desync**: Ensure crafting/smelting modes reset when changing states
+- **Distance calculations**: Use player center point, not top-left corner
+- **Config reload**: Some changes require game restart (font paths, window size)
+- **Performance**: Use distance squared for proximity checks, avoid expensive calculations in tight loops

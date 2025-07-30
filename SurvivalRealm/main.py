@@ -82,8 +82,9 @@ class Game:
         print("   E - 與物件互動")
         print("   F - 消耗食物")
         print("   I - 開啟/關閉物品欄")
-        print("   C - 製作介面 (需靠近工作臺)")
+        print("   C - 製作介面 (工作台=隨時可製作, 其他=需靠近工作臺)")
         print("   S - 燒製介面 (需靠近熔爐)")
+        print("   P - 放置建築物 (工作台/熔爐)")
         print("   1-5 - 裝備物品或製作")
         print("   ESC - 暫停/繼續遊戲")
         print("   Q - 退出遊戲")
@@ -150,17 +151,29 @@ class Game:
             self.player.smelting_mode = False
             if self.player.crafting_mode:
                 self.state = GameState.CRAFTING
+                self.add_message("進入製作模式！按 1-5 製作物品")
             else:
                 self.state = GameState.PLAYING
+                self.add_message("退出製作模式")
 
         elif key == pygame.K_s:
             # 燒製介面
+            if not self._is_near_furnace():
+                self.add_message("需要靠近熔爐才能進入燒製模式！")
+                return
+
             self.player.smelting_mode = not self.player.smelting_mode
             self.player.crafting_mode = False
             if self.player.smelting_mode:
                 self.state = GameState.SMELTING
+                self.add_message("進入燒製模式！按 1 燒製鐵錠")
             else:
                 self.state = GameState.PLAYING
+                self.add_message("退出燒製模式")
+
+        elif key == pygame.K_p:
+            # 放置建築物模式
+            self._handle_place_building()
 
         # 數字鍵操作
         elif pygame.K_1 <= key <= pygame.K_5:
@@ -182,14 +195,35 @@ class Game:
     def _handle_crafting(self, number: int) -> None:
         """處理製作操作"""
         recipes = ["axe", "pickaxe", "bucket", "workbench", "furnace"]
+
         if 1 <= number <= len(recipes):
             item_id = recipes[number - 1]
+
+            # 工作台可以隨時製作（基礎製作）
+            if item_id == "workbench":
+                message = self._craft_item(item_id)
+                if message:
+                    self.add_message(message)
+                return
+
+            # 其他物品需要靠近工作台才能製作（高級製作）
+            if not self._is_near_workbench():
+                self.add_message(f"製作 {item_id} 需要靠近工作台！")
+                return
+
             message = self._craft_item(item_id)
             if message:
                 self.add_message(message)
+        else:
+            self.add_message("無效的製作選項！請按 1-5")
 
     def _handle_smelting(self, number: int) -> None:
         """處理燒製操作"""
+        # 檢查是否靠近熔爐
+        if not self._is_near_furnace():
+            self.add_message("需要靠近熔爐才能燒製！")
+            return
+
         if number == 1:  # 只有鐵錠可以燒製
             message = self._smelt_item("iron_ingot")
             if message:
@@ -263,6 +297,55 @@ class Game:
                     return "物品欄已滿"
 
         return "無法燒製此物品"
+
+    def _is_near_workbench(self) -> bool:
+        """檢查是否靠近工作台"""
+        from src.world.world_objects import Workbench
+
+        center_x = self.player.x + self.player.width // 2
+        center_y = self.player.y + self.player.height // 2
+
+        # 只檢查世界中的工作台
+        workbenches = self.world_manager.get_objects_by_type(Workbench)
+
+        for workbench in workbenches:
+            distance = (
+                (workbench.x - center_x) ** 2 + (workbench.y - center_y) ** 2
+            ) ** 0.5
+            if distance <= 80:  # 80像素範圍內
+                return True
+
+        return False
+
+    def _is_near_furnace(self) -> bool:
+        """檢查是否靠近熔爐"""
+        from src.world.world_objects import Furnace
+
+        center_x = self.player.x + self.player.width // 2
+        center_y = self.player.y + self.player.height // 2
+
+        # 只檢查世界中的熔爐
+        furnaces = self.world_manager.get_objects_by_type(Furnace)
+        for furnace in furnaces:
+            distance = (
+                (furnace.x - center_x) ** 2 + (furnace.y - center_y) ** 2
+            ) ** 0.5
+            if distance <= 80:  # 80像素範圍內
+                return True
+
+        return False
+
+    def _handle_place_building(self) -> None:
+        """處理放置建築物"""
+        # 檢查玩家是否有工作台或熔爐
+        if self.player.inventory.has_item("workbench", 1):
+            message = self.player.place_building("workbench", self.world_manager)
+            self.add_message(message)
+        elif self.player.inventory.has_item("furnace", 1):
+            message = self.player.place_building("furnace", self.world_manager)
+            self.add_message(message)
+        else:
+            self.add_message("沒有可放置的建築物")
 
     def add_message(self, message: str) -> None:
         """
@@ -350,7 +433,9 @@ class Game:
 
         # 繪製製作/燒製介面
         if self.state == GameState.CRAFTING:
-            self.ui.draw_crafting_interface(self.screen, self.player)
+            self.ui.draw_crafting_interface(
+                self.screen, self.player, self.world_manager
+            )
         elif self.state == GameState.SMELTING:
             self.ui.draw_smelting_interface(self.screen, self.player)
 

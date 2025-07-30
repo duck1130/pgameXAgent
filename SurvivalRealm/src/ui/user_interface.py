@@ -376,7 +376,7 @@ class UI:
                 )
                 item_count += 1
 
-    def draw_crafting_interface(self, screen: pygame.Surface, player: "Player") -> None:
+    def draw_crafting_interface(self, screen: pygame.Surface, player: "Player", world_manager=None) -> None:
         """繪製製作介面"""
         craft_width = 500
         craft_height = 400
@@ -390,7 +390,7 @@ class UI:
         # 標題
         self.draw_centered_text(
             screen,
-            "工作臺 - 製作",
+            "製作介面 - 基礎製作",
             craft_x + craft_width // 2,
             craft_y + 25,
             COLORS["TEXT"],
@@ -399,25 +399,56 @@ class UI:
 
         # 顯示可製作的配方
         recipes = {
-            "axe": {"materials": {"wood": 3, "stone": 2}, "name": "斧頭"},
-            "pickaxe": {"materials": {"wood": 2, "stone": 3}, "name": "稿子"},
-            "bucket": {"materials": {"wood": 4, "stone": 1}, "name": "木桶"},
-            "workbench": {"materials": {"wood": 4}, "name": "工作臺"},
-            "furnace": {"materials": {"stone": 8}, "name": "熔爐"},
+            "workbench": {"materials": {"wood": 4}, "name": "工作臺", "basic": True},
+            "axe": {
+                "materials": {"wood": 3, "stone": 2},
+                "name": "斧頭",
+                "basic": False,
+            },
+            "pickaxe": {
+                "materials": {"wood": 2, "stone": 3},
+                "name": "稿子",
+                "basic": False,
+            },
+            "bucket": {
+                "materials": {"wood": 4, "stone": 1},
+                "name": "木桶",
+                "basic": False,
+            },
+            "furnace": {"materials": {"stone": 8}, "name": "熔爐", "basic": False},
         }
 
         y_offset = craft_y + 70
-        for i, (item_id, recipe_data) in enumerate(recipes.items()):
+        recipe_order = ["axe", "pickaxe", "bucket", "workbench", "furnace"]
+
+        for i, item_id in enumerate(recipe_order):
+            recipe_data = recipes[item_id]
+
             # 檢查是否可以製作
             can_craft = all(
                 player.inventory.has_item(mat, amount)
                 for mat, amount in recipe_data["materials"].items()
             )
 
-            color = COLORS["SUCCESS"] if can_craft else COLORS["TEXT_SECONDARY"]
+            # 基礎製作 vs 高級製作
+            if recipe_data["basic"]:
+                color = COLORS["SUCCESS"] if can_craft else COLORS["TEXT_SECONDARY"]
+                craft_type = " (基礎)"
+            else:
+                # 檢查是否靠近工作台
+                has_workbench = self._player_near_workbench(player, world_manager)
+                if has_workbench and can_craft:
+                    color = COLORS["SUCCESS"]
+                    craft_type = " (高級)"
+                elif has_workbench:
+                    color = COLORS["WARNING"]
+                    craft_type = " (高級-缺材料)"
+                else:
+                    color = COLORS["TEXT_SECONDARY"]
+                    craft_type = " (需工作台)"
 
             # 配方名稱
-            recipe_text = f"{i+1}. {recipe_data['name']}"
+            recipe_text = f"{i+1}. {recipe_data['name']}{craft_type}"
             self.draw_text(screen, recipe_text, craft_x + 30, y_offset, color, "medium")
 
             # 材料需求
@@ -439,6 +470,25 @@ class UI:
             COLORS["WARNING"],
             "small",
         )
+
+    def _player_near_workbench(self, player: "Player", world_manager=None) -> bool:
+        """檢查玩家是否靠近工作台（UI用）"""
+        if world_manager is None:
+            return False
+            
+        from ..world.world_objects import Workbench
+        
+        center_x = player.x + player.width // 2
+        center_y = player.y + player.height // 2
+        
+        # 檢查世界中的工作台
+        workbenches = world_manager.get_objects_by_type(Workbench)
+        for workbench in workbenches:
+            distance = ((workbench.x - center_x) ** 2 + (workbench.y - center_y) ** 2) ** 0.5
+            if distance <= 80:  # 80像素範圍內
+                return True
+                
+        return False
 
     def draw_smelting_interface(self, screen: pygame.Surface, player: "Player") -> None:
         """繪製燒製介面"""

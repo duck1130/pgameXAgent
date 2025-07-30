@@ -228,10 +228,13 @@ class River(GameObject):
 
         player.drink_water(has_bucket)
 
+        # 喝過後河流消失
+        self.destroy()
+
         if has_bucket:
-            return {"message": "用木桶裝了河水並喝下，大幅恢復口渴值！"}
+            return {"message": "用木桶裝了河水並喝下，大幅恢復口渴值！河流乾涸了..."}
         else:
-            return {"message": "用手喝了河水，稍微恢復口渴值"}
+            return {"message": "用手喝了河水，稍微恢復口渴值，河流乾涸了..."}
 
 
 class Chest(GameObject):
@@ -354,6 +357,88 @@ class Cave(GameObject):
             return {"message": "探索了洞窟，發現了豐富的資源！", "items": loot}
 
         return {"message": "這個洞窟已經探索過了"}
+
+
+class Workbench(GameObject):
+    """工作台物件 - 用於製作工具"""
+
+    def __init__(self, x: float, y: float):
+        super().__init__(x, y, 60, 40)
+        self.crafting_enabled = True
+
+    def draw(self, screen: pygame.Surface) -> None:
+        """繪製工作台"""
+        if not self.active:
+            return
+
+        # 工作台主體
+        pygame.draw.rect(screen, (139, 69, 19), self.rect)  # 棕色
+        pygame.draw.rect(screen, (101, 67, 33), self.rect, 3)  # 深棕色邊框
+
+        # 工作檯面
+        top_rect = pygame.Rect(self.x, self.y, self.width, 10)
+        pygame.draw.rect(screen, (160, 82, 45), top_rect)
+
+        # 工具標記
+        pygame.draw.circle(
+            screen, (255, 255, 255), (int(self.x + 15), int(self.y + 20)), 3
+        )
+        pygame.draw.circle(
+            screen, (255, 255, 255), (int(self.x + 45), int(self.y + 20)), 3
+        )
+
+    def interact(self, player: "Player") -> Optional[Dict]:
+        """使用工作台"""
+        if not self.active:
+            return None
+
+        return {"message": "接近工作台！按 C 鍵開始製作"}
+
+
+class Furnace(GameObject):
+    """熔爐物件 - 用於燒製物品"""
+
+    def __init__(self, x: float, y: float):
+        super().__init__(x, y, 50, 60)
+        self.smelting_enabled = True
+        self.is_lit = False
+
+    def draw(self, screen: pygame.Surface) -> None:
+        """繪製熔爐"""
+        if not self.active:
+            return
+
+        # 熔爐主體
+        main_color = (105, 105, 105) if not self.is_lit else (139, 69, 19)
+        pygame.draw.rect(screen, main_color, self.rect)
+        pygame.draw.rect(screen, (64, 64, 64), self.rect, 3)
+
+        # 熔爐門
+        door_rect = pygame.Rect(self.x + 10, self.y + 30, 30, 25)
+        door_color = (64, 64, 64) if not self.is_lit else (255, 69, 0)
+        pygame.draw.rect(screen, door_color, door_rect)
+
+        # 煙囪
+        chimney_rect = pygame.Rect(self.x + 35, self.y - 10, 10, 20)
+        pygame.draw.rect(screen, (64, 64, 64), chimney_rect)
+
+        # 火焰效果（如果點燃）
+        if self.is_lit:
+            flame_points = [
+                (self.x + 15, self.y + 40),
+                (self.x + 20, self.y + 30),
+                (self.x + 25, self.y + 35),
+                (self.x + 30, self.y + 25),
+                (self.x + 35, self.y + 40),
+            ]
+            pygame.draw.polygon(screen, (255, 140, 0), flame_points)
+
+    def interact(self, player: "Player") -> Optional[Dict]:
+        """使用熔爐"""
+        if not self.active:
+            return None
+
+        return {"message": "接近熔爐！按 S 鍵開始燒製"}
 
 
 class Monster(GameObject):

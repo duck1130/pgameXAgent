@@ -13,7 +13,17 @@ import math
 from typing import List, TYPE_CHECKING
 
 from .game_object import GameObject
-from .world_objects import Tree, Rock, Food, River, Chest, Cave, Monster
+from .world_objects import (
+    Tree,
+    Rock,
+    Food,
+    River,
+    Chest,
+    Cave,
+    Monster,
+    Workbench,
+    Furnace,
+)
 from ..core.config import WORLD_OBJECTS, WORLD_CONFIG, WINDOW_CONFIG
 
 # 避免循環引用
@@ -110,6 +120,10 @@ class WorldManager:
             self.objects.append(Cave(x, y))
         elif obj_type == "monster":
             self.objects.append(Monster(x, y))
+        elif obj_type == "workbench":
+            self.objects.append(Workbench(x, y))
+        elif obj_type == "furnace":
+            self.objects.append(Furnace(x, y))
 
     def update(self, delta_time: float) -> None:
         """

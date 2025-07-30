@@ -155,7 +155,7 @@ WORLD_OBJECTS = {
         "damage": 10,
         "attack_cooldown": 2.0,
     },
-    "river": {"spawn_rate": 0.02, "color": (0, 119, 190), "size": (120, 60)},
+    "river": {"spawn_rate": 0.05, "color": (0, 119, 190), "size": (120, 60)},
     "iron_ore": {"spawn_rate": 0.05, "color": (139, 69, 19), "size": (25, 25)},
 }
 
