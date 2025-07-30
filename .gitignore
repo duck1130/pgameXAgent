@@ -1,0 +1,368 @@
+# =================================
+# 🎮 PygameXAgent 專案 .gitignore
+# 硬漢貓咪開發團隊專用設定 🐱
+# =================================
+
+# ===== Python 相關 =====
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff (以防萬一):
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ===== IDE 和編輯器 =====
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Local History for Visual Studio Code
+.history/
+
+# Built Visual Studio Code Extensions
+*.vsix
+
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===== 作業系統 =====
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===== 遊戲開發專用 =====
+# 遊戲存檔檔案
+saves/
+savegames/
+*.save
+*.dat
+
+# 遊戲日誌
+game_logs/
+*.log
+
+# 臨時遊戲檔案
+temp/
+tmp/
+cache/
+
+# 遊戲截圖 (如果不需要版控)
+screenshots/
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.tiff
+!assets/images/*.png
+!assets/images/*.jpg
+!assets/images/*.jpeg
+
+# 音效檔案 (大檔案，通常不需要版控)
+*.wav
+*.mp3
+*.ogg
+*.flac
+!assets/sounds/*.wav
+!assets/sounds/*.mp3
+!assets/sounds/*.ogg
+
+# 字型檔案
+*.ttf
+*.otf
+!assets/fonts/*.ttf
+!assets/fonts/*.otf
+
+# ===== 專案特定 =====
+# 建置輸出
+build/
+dist/
+*.exe
+
+# 設定檔案 (可能包含敏感資訊)
+config.ini
+settings.cfg
+*.conf
+
+# 測試檔案
+test_output/
+test_results/
+
+# 效能分析
+*.prof
+*.profile
+
+# 備份檔案
+*.bak
+*.backup
+*.old
+
+# 壓縮檔案
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# ===== 開發工具 =====
+# Node.js (如果使用)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 版本控制相關
+*.orig
+*.rej
+
+# 編譯快取
+.compile_cache/
+
+# 本地開發用檔案
+local/
+dev/
+experimental/
+
+# 文件草稿
+drafts/
+notes/
+TODO.txt
+
+# ===== 安全相關 =====
+# 金鑰和憑證
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+
+# 密碼和 API 金鑰
+secrets.py
+api_keys.py
+credentials.json
+
+# ===== 其他 =====
+# 大型資料檔案
+*.csv
+*.json
+*.xml
+!small_configs/*.json
+!small_configs/*.xml
+
+# 暫存檔案
+*.tmp
+*.temp
+
+# 系統檔案
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# ===== 專案文件例外 =====
+# 重要的專案文件不要忽略
+!README.md
+!README_*.md
+!LICENSE
+!CHANGELOG.md
+!requirements.txt
+!setup.py
+!pyproject.toml
+
+# ===== 結尾註解 =====
+# 本 .gitignore 由硬漢貓咪開發團隊精心製作 🐱
+# 如果需要添加特定檔案類型，請在對應區塊添加
+# 記住：忽略不必要的檔案，保持 repo 乾淨！(ˋ・ω・ˊ)
