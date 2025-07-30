@@ -177,10 +177,54 @@ TIME_CONFIG = {
 
 # ====== UI 配置 ======
 
+import platform
+
+
+# 根據操作系統選擇字體路徑
+def get_font_config():
+    """獲取操作系統相應的字體配置"""
+    system = platform.system()
+
+    if system == "Windows":
+        return {
+            "font_path": "C:/Windows/Fonts/msjh.ttc",  # 微軟正黑體
+            "font_fallback": [
+                "C:/Windows/Fonts/simhei.ttf",  # 黑體
+                "C:/Windows/Fonts/simsun.ttc",  # 宋體
+                None,  # 系統預設
+            ],
+        }
+    elif system == "Darwin":  # macOS
+        return {
+            "font_path": "/System/Library/Fonts/PingFang.ttc",  # 蘋方字體（最佳中文字體）
+            "font_fallback": [
+                "/System/Library/Fonts/Hiragino Sans GB.ttc",  # 冬青黑體簡體中文
+                "/System/Library/Fonts/STHeiti Light.ttc",  # 華文黑體
+                "/System/Library/Fonts/Supplemental/Songti.ttc",  # 宋體
+                "/Library/Fonts/Arial Unicode MS.ttf",  # Arial Unicode MS
+                "/System/Library/Fonts/Helvetica.ttc",  # 系統字體
+                None,  # 系統預設
+            ],
+        }
+    else:  # Linux 和其他系統
+        return {
+            "font_path": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "font_fallback": [
+                "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",  # 文泉驛正黑
+                "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",  # 文泉驛微米黑
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                None,  # 系統預設
+            ],
+        }
+
+
+# 獲取字體配置
+_font_config = get_font_config()
+
 UI_CONFIG = {
     "font_size": {"large": 24, "medium": 18, "small": 14},
-    "font_path": "C:/Windows/Fonts/msjh.ttc",  # 微軟正黑體
-    "font_fallback": ["C:/Windows/Fonts/simhei.ttf", None],  # 黑體備用  # 系統預設
+    "font_path": _font_config["font_path"],
+    "font_fallback": _font_config["font_fallback"],
     "message_duration": 3.0,  # 訊息顯示時間
     "max_messages": 5,  # 最大訊息數量
     "inventory_size": 20,  # 物品欄大小

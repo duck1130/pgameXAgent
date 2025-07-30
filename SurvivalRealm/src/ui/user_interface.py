@@ -33,7 +33,7 @@ class UI:
         print("✅ UI系統初始化完成！")
 
     def _load_fonts(self) -> dict:
-        """載入字體"""
+        """載入字體，針對不同操作系統優化"""
         fonts = {}
         font_sizes = UI_CONFIG["font_size"]
 
@@ -41,40 +41,120 @@ class UI:
         font_path = UI_CONFIG["font_path"]
         fallback_paths = UI_CONFIG["font_fallback"]
 
+        print("🔍 開始載入字體...")
+        print(f"🖥️  檢測到系統: {self._get_system_name()}")
+
+        # 檢查系統可用字體
+        self._check_system_fonts()
+
         for size_name, size in font_sizes.items():
             font_loaded = False
+            loaded_font_info = ""
 
             # 嘗試主字體
             try:
                 fonts[size_name] = pygame.font.Font(font_path, size)
                 font_loaded = True
+                loaded_font_info = f"主字體: {font_path}"
                 if size_name == "large":  # 只打印一次
-                    print("✅ 成功載入 Microsoft JhengHei 字體！")
-            except FileNotFoundError:
-                pass
+                    print(f"✅ {loaded_font_info}")
+            except (FileNotFoundError, OSError) as e:
+                if size_name == "large":
+                    print(f"❌ 主字體載入失敗: {font_path}")
 
             # 嘗試備用字體
             if not font_loaded:
-                for fallback_path in fallback_paths:
+                for i, fallback_path in enumerate(fallback_paths):
                     try:
                         if fallback_path is None:
                             fonts[size_name] = pygame.font.Font(None, size)
+                            loaded_font_info = "系統預設字體"
                         else:
                             fonts[size_name] = pygame.font.Font(fallback_path, size)
+                            loaded_font_info = f"備用字體 {i+1}: {fallback_path}"
+
                         font_loaded = True
                         if size_name == "large":
-                            print(f"⚠️  使用備用字體: {fallback_path or '系統預設'}")
+                            print(f"✅ {loaded_font_info}")
                         break
-                    except FileNotFoundError:
+                    except (FileNotFoundError, OSError):
+                        if size_name == "large":
+                            print(f"❌ 備用字體 {i+1} 載入失敗: {fallback_path}")
                         continue
 
             # 如果都失敗，使用系統預設
             if not font_loaded:
                 fonts[size_name] = pygame.font.Font(None, size)
                 if size_name == "large":
-                    print("❌ 使用系統預設字體")
+                    print("⚠️  所有字體都載入失敗，使用系統預設字體")
+                    print("💡 建議安裝支援中文的字體以獲得更好的顯示效果")
+
+        # 測試中文字符顯示
+        self._test_chinese_font_support(fonts["medium"])
 
         return fonts
+
+    def _check_system_fonts(self) -> None:
+        """檢查系統可用字體（僅在 macOS 上）"""
+        import platform
+        import os
+
+        if platform.system() != "Darwin":
+            return
+
+        print("🔎 檢查 macOS 系統字體...")
+
+        # macOS 常見中文字體路徑
+        common_fonts = [
+            ("/System/Library/Fonts/PingFang.ttc", "蘋方"),
+            ("/System/Library/Fonts/Hiragino Sans GB.ttc", "冬青黑體簡體"),
+            ("/System/Library/Fonts/STHeiti Light.ttc", "華文黑體"),
+            ("/System/Library/Fonts/Supplemental/Songti.ttc", "宋體"),
+            ("/Library/Fonts/Arial Unicode MS.ttf", "Arial Unicode MS"),
+        ]
+
+        available_fonts = []
+        for font_path, font_name in common_fonts:
+            if os.path.exists(font_path):
+                available_fonts.append(font_name)
+                print(f"✅ 發現字體: {font_name}")
+            else:
+                print(f"❌ 未發現: {font_name}")
+
+        if available_fonts:
+            print(f"🎉 共發現 {len(available_fonts)} 個中文字體")
+        else:
+            print("⚠️  未發現專用中文字體，將使用系統預設字體")
+
+    def _get_system_name(self) -> str:
+        """獲取系統名稱"""
+        import platform
+
+        system = platform.system()
+
+        system_names = {"Darwin": "macOS", "Windows": "Windows", "Linux": "Linux"}
+
+        return system_names.get(system, system)
+
+    def _test_chinese_font_support(self, font) -> None:
+        """測試字體對中文的支援程度"""
+        test_chars = ["你好", "遊戲", "生存", "🎮"]
+
+        print("🧪 測試中文字體支援...")
+
+        for char_test in test_chars:
+            try:
+                # 嘗試渲染測試字符
+                test_surface = font.render(char_test, True, (255, 255, 255))
+                # 如果渲染成功且有實際內容
+                if test_surface.get_width() > 0 and test_surface.get_height() > 0:
+                    print(f"✅ 字符 '{char_test}' 支援良好")
+                else:
+                    print(f"⚠️  字符 '{char_test}' 可能顯示為方框")
+            except Exception as e:
+                print(f"❌ 字符 '{char_test}' 渲染失敗: {e}")
+
+        print("🎯 字體測試完成！")
 
     def draw_text(
         self,
@@ -376,7 +456,9 @@ class UI:
                 )
                 item_count += 1
 
-    def draw_crafting_interface(self, screen: pygame.Surface, player: "Player", world_manager=None) -> None:
+    def draw_crafting_interface(
+        self, screen: pygame.Surface, player: "Player", world_manager=None
+    ) -> None:
         """繪製製作介面"""
         craft_width = 500
         craft_height = 400
@@ -475,19 +557,21 @@ class UI:
         """檢查玩家是否靠近工作台（UI用）"""
         if world_manager is None:
             return False
-            
+
         from ..world.world_objects import Workbench
-        
+
         center_x = player.x + player.width // 2
         center_y = player.y + player.height // 2
-        
+
         # 檢查世界中的工作台
         workbenches = world_manager.get_objects_by_type(Workbench)
         for workbench in workbenches:
-            distance = ((workbench.x - center_x) ** 2 + (workbench.y - center_y) ** 2) ** 0.5
+            distance = (
+                (workbench.x - center_x) ** 2 + (workbench.y - center_y) ** 2
+            ) ** 0.5
             if distance <= 80:  # 80像素範圍內
                 return True
-                
+
         return False
 
     def draw_smelting_interface(self, screen: pygame.Surface, player: "Player") -> None:
