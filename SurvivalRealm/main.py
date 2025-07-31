@@ -251,10 +251,17 @@ class Game:
         elif key == pygame.K_f:
             # 消耗食物 (僅在遊戲狀態下)
             if self.state == GameState.PLAYING:
+                # 獲取消耗前的飢餓值
+                old_hunger = self.player.survival_stats.hunger
+
                 if self.player.consume_food():
-                    self.add_message("消耗食物，恢復飢餓值！")
+                    new_hunger = self.player.survival_stats.hunger
+                    hunger_gained = new_hunger - old_hunger
+                    self.add_message(
+                        f"🍎 消耗食物！飢餓值恢復了 {hunger_gained:.1f} 點 (當前: {new_hunger:.1f}/100)"
+                    )
                 else:
-                    self.add_message("沒有食物可以消耗")
+                    self.add_message("❌ 沒有食物可以消耗！需要收集漿果或其他食物")
 
         elif key == pygame.K_l:  # L鍵 - 使用照明工具
             if self.cave_system.in_cave:

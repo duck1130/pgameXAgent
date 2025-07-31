@@ -168,6 +168,16 @@ class Player:
         if stone_item:
             self.inventory.add_item(stone_item, 8)  # 8個石頭 - 足夠製作基礎工具
 
+        # 🍎 硬漢貓咪開發提醒：給玩家一些基礎食物，不然會餓死的！
+        food_item = item_database.get_item("food")
+        berry_item = item_database.get_item("berry")
+
+        if food_item:
+            self.inventory.add_item(food_item, 5)  # 5個基礎食物
+
+        if berry_item:
+            self.inventory.add_item(berry_item, 8)  # 8個漿果
+
     def get_tool_efficiency(self, target_type: str) -> float:
         """
         獲取當前工具對特定目標的效率
@@ -379,32 +389,77 @@ class Player:
 
         return "無法放置此物品"
 
-    def consume_food(self, food_type: str = "food") -> bool:
+    def consume_food(self, food_type: str = None) -> bool:
         """
-        消耗食物恢復飢餓值
+        消耗食物恢復飢餓值 - 智能搜尋可用食物
 
         Args:
-            food_type (str): 食物類型
+            food_type (str): 指定食物類型（可選）
 
         Returns:
             bool: 是否成功消耗
         """
-        if not self.inventory.has_item(food_type, 1):
+        # 定義所有可用的食物類型和恢復量
+        food_types = {
+            "food": 30,
+            "berry": 15,
+            "mushroom": 25,
+            "fruit": 20,
+            "health_potion": 0,  # 生命藥水不恢復飢餓但恢復血量
+            "energy_potion": 0,  # 體力藥水不恢復飢餓但恢復體力
+        }
+
+        # 如果指定了食物類型，只嘗試該類型
+        if food_type:
+            if self.inventory.has_item(food_type, 1):
+                removed = self.inventory.remove_item(food_type, 1)
+                if removed > 0:
+                    self._apply_food_effects(food_type)
+                    return True
             return False
 
-        removed = self.inventory.remove_item(food_type, 1)
-        if removed > 0:
-            # 根據食物類型給予不同的恢復量
-            recovery_amount = {"food": 30, "berry": 15, "mushroom": 25}.get(
-                food_type, 20
-            )
+        # 智能搜尋：按優先順序嘗試消耗食物
+        priority_order = [
+            "food",
+            "fruit",
+            "mushroom",
+            "berry",
+            "health_potion",
+            "energy_potion",
+        ]
 
+        for food_id in priority_order:
+            if self.inventory.has_item(food_id, 1):
+                removed = self.inventory.remove_item(food_id, 1)
+                if removed > 0:
+                    self._apply_food_effects(food_id)
+                    return True
+
+        return False
+
+    def _apply_food_effects(self, food_type: str) -> None:
+        """
+        應用食物效果
+
+        Args:
+            food_type (str): 食物類型
+        """
+        # 恢復飢餓值的食物
+        hunger_recovery = {"food": 30, "berry": 15, "mushroom": 25, "fruit": 20}
+
+        if food_type in hunger_recovery:
+            recovery_amount = hunger_recovery[food_type]
             self.survival_stats.hunger = min(
                 100, self.survival_stats.hunger + recovery_amount
             )
-            return True
 
-        return False
+        # 特殊效果食物
+        if food_type == "health_potion":
+            # 生命藥水恢復大量生命值
+            self.survival_stats.health = min(100, self.survival_stats.health + 50)
+        elif food_type == "energy_potion":
+            # 體力藥水恢復大量體力
+            self.survival_stats.energy = min(100, self.survival_stats.energy + 60)
 
     def drink_water(self, has_bucket: bool = False) -> None:
         """
