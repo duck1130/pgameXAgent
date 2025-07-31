@@ -66,6 +66,18 @@ class Game:
         spawn_y = WINDOW_CONFIG["height"] // 2
         self.player = Player(spawn_x, spawn_y)
 
+        # 🐱 硬漢貓咪調試：給玩家一些測試材料
+        from src.systems.inventory import item_database
+
+        wood_item = item_database.get_item("wood")
+        stone_item = item_database.get_item("stone")
+        if wood_item:
+            self.player.inventory.add_item(wood_item, 10)  # 給10個木材
+            print(f"🎁 調試：給玩家添加了 10 個木材")
+        if stone_item:
+            self.player.inventory.add_item(stone_item, 10)  # 給10個石頭
+            print(f"🎁 調試：給玩家添加了 10 個石頭")
+
         # 初始化時間管理器
         self.time_manager = TimeManager()
 
@@ -163,101 +175,116 @@ class Game:
         elif key == pygame.K_q:
             self.running = False
 
-        # 遊戲進行中的按鍵
-        elif self.state == GameState.PLAYING:
+        # 遊戲進行中的按鍵 (包括製作和燒製狀態)
+        elif self.state in [GameState.PLAYING, GameState.CRAFTING, GameState.SMELTING]:
             self._handle_gameplay_keys(key)
 
     def _handle_gameplay_keys(self, key: int) -> None:
         """處理遊戲進行中的按鍵"""
         if key == pygame.K_e:
-            # 與世界互動
-            message = self.player.interact_with_world(self.world_manager)
-            if message:
-                self.add_message(message)
+            # 與世界互動 (僅在遊戲狀態下)
+            if self.state == GameState.PLAYING:
+                message = self.player.interact_with_world(self.world_manager)
+                if message:
+                    self.add_message(message)
 
         elif key == pygame.K_f:
-            # 消耗食物
-            if self.player.consume_food():
-                self.add_message("消耗食物，恢復飢餓值！")
-            else:
-                self.add_message("沒有食物可以消耗")
+            # 消耗食物 (僅在遊戲狀態下)
+            if self.state == GameState.PLAYING:
+                if self.player.consume_food():
+                    self.add_message("消耗食物，恢復飢餓值！")
+                else:
+                    self.add_message("沒有食物可以消耗")
 
         elif key == pygame.K_i:
-            # 切換物品欄
-            self.state = (
-                GameState.INVENTORY
-                if self.state != GameState.INVENTORY
-                else GameState.PLAYING
-            )
+            # 切換物品欄 (僅在遊戲狀態下)
+            if self.state == GameState.PLAYING:
+                self.state = (
+                    GameState.INVENTORY
+                    if self.state != GameState.INVENTORY
+                    else GameState.PLAYING
+                )
 
         elif key == pygame.K_c:
-            # 製作介面
-            print(
-                f"🔄 C鍵被按下，當前狀態: {self.state}, 製作模式: {self.player.crafting_mode}"
-            )
-            # 顯示玩家當前材料狀況
-            wood_count = self.player.inventory.get_item_count("wood")
-            stone_count = self.player.inventory.get_item_count("stone")
-            empty_slots = self.player.inventory.get_empty_slots()
-            print(
-                f"📦 玩家材料狀況：木材={wood_count}, 石頭={stone_count}, 空槽位={empty_slots}"
-            )
+            # 製作介面 (僅在遊戲狀態下才能切換)
+            if self.state == GameState.PLAYING:
+                print(
+                    f"🔄 C鍵被按下，當前狀態: {self.state}, 製作模式: {self.player.crafting_mode}"
+                )
 
-            self.player.crafting_mode = not self.player.crafting_mode
-            self.player.smelting_mode = False
-            if self.player.crafting_mode:
-                self.state = GameState.CRAFTING
+                # 顯示玩家當前材料狀況
+                wood_count = self.player.inventory.get_item_count("wood")
+                stone_count = self.player.inventory.get_item_count("stone")
+                empty_slots = self.player.inventory.get_empty_slots()
                 print(
-                    f"✅ 進入製作模式！新狀態: {self.state}, 製作模式: {self.player.crafting_mode}"
+                    f"📦 玩家材料狀況：木材={wood_count}, 石頭={stone_count}, 空槽位={empty_slots}"
                 )
-                self.add_message("進入製作模式！按 1-7 製作物品")
-            else:
-                self.state = GameState.PLAYING
+
+                # 顯示製作模式切換前的狀態
                 print(
-                    f"❌ 退出製作模式！新狀態: {self.state}, 製作模式: {self.player.crafting_mode}"
+                    f"🔍 製作模式切換前: crafting_mode={self.player.crafting_mode}, state={self.state}"
                 )
-                self.add_message("退出製作模式")
+
+                self.player.crafting_mode = not self.player.crafting_mode
+                self.player.smelting_mode = False
+
+                print(f"🔍 製作模式切換後: crafting_mode={self.player.crafting_mode}")
+
+                if self.player.crafting_mode:
+                    self.state = GameState.CRAFTING
+                    print(
+                        f"✅ 進入製作模式！新狀態: {self.state}, 製作模式: {self.player.crafting_mode}"
+                    )
+                    self.add_message("進入製作模式！按 1-7 製作物品")
+                else:
+                    self.state = GameState.PLAYING
+                    print(
+                        f"❌ 退出製作模式！新狀態: {self.state}, 製作模式: {self.player.crafting_mode}"
+                    )
+                    self.add_message("退出製作模式")
 
         elif key == pygame.K_t:
-            # 燒製介面 (T key - smelTing)
-            if not self._is_near_furnace():
-                self.add_message("需要靠近熔爐才能進入燒製模式！")
-                return
+            # 燒製介面 (T key - smelTing) (僅在遊戲狀態下才能切換)
+            if self.state == GameState.PLAYING:
+                if not self._is_near_furnace():
+                    self.add_message("需要靠近熔爐才能進入燒製模式！")
+                    return
 
-            self.player.smelting_mode = not self.player.smelting_mode
-            self.player.crafting_mode = False
-            if self.player.smelting_mode:
-                self.state = GameState.SMELTING
-                self.add_message("進入燒製模式！按 1 燒製鐵錠")
-            else:
-                self.state = GameState.PLAYING
-                self.add_message("退出燒製模式")
+                self.player.smelting_mode = not self.player.smelting_mode
+                self.player.crafting_mode = False
+                if self.player.smelting_mode:
+                    self.state = GameState.SMELTING
+                    self.add_message("進入燒製模式！按 1 燒製鐵錠")
+                else:
+                    self.state = GameState.PLAYING
+                    self.add_message("退出燒製模式")
 
         elif key == pygame.K_p:
-            # 放置建築物模式
-            self._handle_place_building()
+            # 放置建築物模式 (僅在遊戲狀態下)
+            if self.state == GameState.PLAYING:
+                self._handle_place_building()
 
         elif key == pygame.K_m:
-            # 切換音樂播放
+            # 切換音樂播放 (任何遊戲狀態都可以)
             is_playing = self.music_manager.toggle_music()
             status = "開啟" if is_playing else "關閉"
             self.add_message(f"🎵 背景音樂已{status}")
 
         elif key == pygame.K_PLUS or key == pygame.K_EQUALS:
-            # 增加音量
+            # 增加音量 (任何遊戲狀態都可以)
             current_volume = self.music_manager.volume
             new_volume = min(1.0, current_volume + 0.1)
             self.music_manager.set_volume(new_volume)
             self.add_message(f"🔊 音量: {int(new_volume * 100)}%")
 
         elif key == pygame.K_MINUS:
-            # 減少音量
+            # 減少音量 (任何遊戲狀態都可以)
             current_volume = self.music_manager.volume
             new_volume = max(0.0, current_volume - 0.1)
             self.music_manager.set_volume(new_volume)
             self.add_message(f"🔉 音量: {int(new_volume * 100)}%")
 
-        # 數字鍵操作
+        # 數字鍵操作 (在所有允許的遊戲狀態下都可以)
         elif pygame.K_1 <= key <= pygame.K_7:
             number = key - pygame.K_1 + 1
             self._handle_number_key(number)
@@ -276,11 +303,11 @@ class Game:
 
         # 檢查雙重條件 - 製作模式
         if self.player.crafting_mode or self.state == GameState.CRAFTING:
-            print(f"✅ 調試：在製作模式，呼叫製作處理")
+            print(f"✅ 調試：進入製作條件分支，呼叫製作處理")
             self._handle_crafting(number)
         # 檢查雙重條件 - 燒製模式
         elif self.player.smelting_mode or self.state == GameState.SMELTING:
-            print(f"🔥 調試：在燒製模式，呼叫燒製處理")
+            print(f"🔥 調試：進入燒製條件分支，呼叫燒製處理")
             self._handle_smelting(number)
         # 物品欄狀態
         elif self.state == GameState.INVENTORY:
