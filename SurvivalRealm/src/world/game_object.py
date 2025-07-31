@@ -46,6 +46,36 @@ class GameObject(ABC):
         """
         pass
 
+    def draw_with_camera(
+        self, screen: pygame.Surface, screen_x: int, screen_y: int
+    ) -> None:
+        """
+        使用相機座標繪製物件
+
+        Args:
+            screen: pygame螢幕物件
+            screen_x: 物件在螢幕上的X座標
+            screen_y: 物件在螢幕上的Y座標
+        """
+        # 預設實作：創建一個臨時矩形在指定螢幕位置繪製
+        # 子類可以覆寫這個方法來自定義相機繪製行為
+        temp_rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
+
+        # 調用子類的繪製方法，但使用臨時位置
+        original_x, original_y = self.x, self.y
+        original_rect = self.rect
+
+        # 暫時修改座標用於繪製
+        self.x, self.y = screen_x, screen_y
+        self.rect = temp_rect
+
+        # 調用原始繪製方法
+        self.draw(screen)
+
+        # 恢復原始座標
+        self.x, self.y = original_x, original_y
+        self.rect = original_rect
+
     @abstractmethod
     def interact(self, player: "Player") -> Optional[Dict]:
         """

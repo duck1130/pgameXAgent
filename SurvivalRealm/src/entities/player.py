@@ -443,8 +443,8 @@ class Player:
 
         Args:
             delta_time (float): 幀時間差
-            window_width (int): 視窗寬度
-            window_height (int): 視窗高度
+            window_width (int): 視窗寬度（在相機系統中不用於邊界檢查）
+            window_height (int): 視窗高度（在相機系統中不用於邊界檢查）
         """
         # 記錄舊位置用於回合制檢測
         old_x, old_y = self.x, self.y
@@ -453,9 +453,11 @@ class Player:
         self.x += self.velocity_x * delta_time
         self.y += self.velocity_y * delta_time
 
-        # 螢幕邊界檢查
-        self.x = max(0, min(window_width - self.width, self.x))
-        self.y = max(0, min(window_height - self.height, self.y))
+        # 在相機系統中，玩家可以在世界中自由移動
+        # 不再有螢幕邊界限制，但可以設定世界邊界
+        world_limit = 5000  # 世界大小限制
+        self.x = max(-world_limit, min(world_limit, self.x))
+        self.y = max(-world_limit, min(world_limit, self.y))
 
         # 檢查是否真的移動了（回合制系統）
         moved_distance = math.sqrt((self.x - old_x) ** 2 + (self.y - old_y) ** 2)
@@ -471,12 +473,16 @@ class Player:
         # 更新生存數值
         self.survival_stats.update(delta_time)
 
-    def draw(self, screen: pygame.Surface) -> None:
+    def draw(
+        self, screen: pygame.Surface, camera_x: int = None, camera_y: int = None
+    ) -> None:
         """
         繪製玩家角色
 
         Args:
             screen: pygame螢幕物件
+            camera_x: 相機X座標（如果提供，表示使用相機系統）
+            camera_y: 相機Y座標（如果提供，表示使用相機系統）
         """
         # 根據生命值決定顏色
         if self.survival_stats.health > 60:
@@ -486,18 +492,44 @@ class Player:
         else:
             player_color = COLORS["DANGER"]
 
-        # 繪製玩家主體
-        pygame.draw.rect(screen, player_color, self.rect)
+        # 如果使用相機系統，玩家固定在指定位置
+        if camera_x is not None and camera_y is not None:
+            # 玩家固定在相機指定位置（通常是螢幕中心）
+            player_rect = pygame.Rect(
+                camera_x - self.width // 2,
+                camera_y - self.height // 2,
+                self.width,
+                self.height,
+            )
 
-        # 繪製眼睛表示方向
-        eye_size = 4
-        left_eye = (int(self.x + 8), int(self.y + 8))
-        right_eye = (int(self.x + 24), int(self.y + 8))
-        pygame.draw.circle(screen, COLORS["TEXT"], left_eye, eye_size)
-        pygame.draw.circle(screen, COLORS["TEXT"], right_eye, eye_size)
+            # 繪製玩家主體
+            pygame.draw.rect(screen, player_color, player_rect)
 
-        # 繪製裝備指示器
-        self._draw_equipment_indicators(screen)
+            # 繪製眼睛表示方向
+            eye_size = 4
+            left_eye = (camera_x - self.width // 2 + 8, camera_y - self.height // 2 + 8)
+            right_eye = (
+                camera_x - self.width // 2 + 24,
+                camera_y - self.height // 2 + 8,
+            )
+            pygame.draw.circle(screen, COLORS["TEXT"], left_eye, eye_size)
+            pygame.draw.circle(screen, COLORS["TEXT"], right_eye, eye_size)
+
+            # 繪製裝備指示器
+            self._draw_equipment_indicators_with_camera(screen, camera_x, camera_y)
+        else:
+            # 傳統繪製方式（向後兼容）
+            pygame.draw.rect(screen, player_color, self.rect)
+
+            # 繪製眼睛表示方向
+            eye_size = 4
+            left_eye = (int(self.x + 8), int(self.y + 8))
+            right_eye = (int(self.x + 24), int(self.y + 8))
+            pygame.draw.circle(screen, COLORS["TEXT"], left_eye, eye_size)
+            pygame.draw.circle(screen, COLORS["TEXT"], right_eye, eye_size)
+
+            # 繪製裝備指示器
+            self._draw_equipment_indicators(screen)
 
     def _draw_equipment_indicators(self, screen: pygame.Surface) -> None:
         """繪製裝備指示器"""
@@ -527,6 +559,49 @@ class Player:
                 (int(self.x + self.width - 8), int(self.y + self.height - 8)),
                 3,
             )
+
+    def _draw_equipment_indicators_with_camera(
+        self, screen: pygame.Surface, camera_x: int, camera_y: int
+    ) -> None:
+        """使用相機座標繪製裝備指示器"""
+        player_left = camera_x - self.width // 2
+        player_top = camera_y - self.height // 2
+
+        # 工具指示器
+        if self.equipped_tool:
+            tool_color = COLORS["INFO"]
+            pygame.draw.circle(
+                screen, tool_color, (player_left + self.width - 8, player_top + 8), 3
+            )
+
+        # 武器指示器
+        if self.equipped_weapon:
+            weapon_color = COLORS["DANGER"]
+            pygame.draw.circle(
+                screen,
+                weapon_color,
+                (player_left + 8, player_top + self.height - 8),
+                3,
+            )
+
+        # 護甲指示器
+        if self.equipped_armor:
+            armor_color = COLORS["WARNING"]
+            pygame.draw.circle(
+                screen,
+                armor_color,
+                (player_left + self.width - 8, player_top + self.height - 8),
+                3,
+            )
+
+    def get_world_center(self) -> tuple:
+        """
+        獲取玩家在世界中的中心座標
+
+        Returns:
+            tuple: (center_x, center_y) 玩家世界中心座標
+        """
+        return (self.x + self.width // 2, self.y + self.height // 2)
 
     def get_status_text(self) -> str:
         """獲取狀態文字描述"""

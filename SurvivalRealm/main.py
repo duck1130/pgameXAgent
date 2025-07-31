@@ -47,6 +47,7 @@ class Game:
         from src.systems.time_manager import TimeManager
         from src.systems.music_manager import MusicManager
         from src.world.cave_system import cave_system
+        from src.systems.camera import camera  # 導入相機系統
 
         self.world_manager = WorldManager()
         print("🌍 世界管理器初始化完成")
@@ -59,6 +60,10 @@ class Game:
         self.pending_cave_entry = None  # 待進入的洞穴信息
         print("🕳️ 洞穴探險系統初始化完成！")
 
+        # 相機系統
+        self.camera = camera
+        print("📷 相機系統初始化完成！玩家將固定在螢幕中心")
+
         # 初始化 UI 系統
         from src.ui.user_interface import UI
 
@@ -68,8 +73,9 @@ class Game:
         # 初始化玩家
         from src.entities.player import Player
 
-        spawn_x = WINDOW_CONFIG["width"] // 2
-        spawn_y = WINDOW_CONFIG["height"] // 2
+        # 玩家在相機系統中的世界座標（可以任意設定）
+        spawn_x = 0  # 世界中心
+        spawn_y = 0  # 世界中心
         self.player = Player(spawn_x, spawn_y)
 
         # 🐱 硬漢貓咪調試：給玩家一些測試材料
@@ -648,6 +654,10 @@ class Game:
         # 更新各系統
         self.player.update(delta_time, WINDOW_CONFIG["width"], WINDOW_CONFIG["height"])
 
+        # 更新相機位置跟隨玩家
+        player_center_x, player_center_y = self.player.get_world_center()
+        self.camera.update(player_center_x, player_center_y, delta_time)
+
         # 更新世界管理器（獲取消息）
         player_center_x = self.player.x + self.player.width // 2
         player_center_y = self.player.y + self.player.height // 2
@@ -794,11 +804,12 @@ class Game:
             # 繪製洞穴場景
             self._draw_cave_scene()
         else:
-            # 繪製地表場景
-            self.world_manager.draw(self.screen)
+            # 繪製地表場景（使用相機系統）
+            self.world_manager.draw(self.screen, self.camera)
 
-        # 繪製玩家
-        self.player.draw(self.screen)
+        # 繪製玩家（固定在螢幕中心）
+        camera_center_x, camera_center_y = self.camera.get_player_screen_position()
+        self.player.draw(self.screen, camera_center_x, camera_center_y)
 
         # 繪製UI
         self.ui.draw_survival_bars(self.screen, self.player)
@@ -859,8 +870,11 @@ class Game:
         )
 
         # 繪製洞穴物件和黑暗效果
-        self.cave_system.draw(self.screen)
+        self.cave_system.draw(self.screen, self.camera)
 
+        # 繪製玩家（在洞穴中也固定在螢幕中心）
+        camera_center_x, camera_center_y = self.camera.get_player_screen_position()
+        self.player.draw(self.screen, camera_center_x, camera_center_y)
         # 繪製出口提示
         exit_text = "按 Enter 鍵退出洞穴"
         font = pygame.font.Font(None, 24)

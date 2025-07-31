@@ -24,7 +24,7 @@ from .world_objects import (
     Workbench,
     Furnace,
 )
-from ..core.config import WORLD_CONFIG, WINDOW_CONFIG
+from ..core.config import WORLD_CONFIG
 
 # 避免循環引用
 if TYPE_CHECKING:
@@ -51,24 +51,27 @@ class WorldManager:
         num_objects = WORLD_CONFIG["initial_objects"]
         safe_zone_radius = WORLD_CONFIG["safe_zone_radius"]
 
-        # 計算玩家起始位置（螢幕中央）
-        player_start_x = WINDOW_CONFIG["width"] // 2
-        player_start_y = WINDOW_CONFIG["height"] // 2
+        # 在相機系統中，玩家從世界中心開始
+        player_start_x = 0  # 世界中心
+        player_start_y = 0  # 世界中心
 
         objects_created = 0
         attempts = 0
         max_attempts = num_objects * 3  # 防止無限循環
 
+        # 世界生成範圍（相機系統下需要更大的範圍）
+        world_range = 2000  # 在玩家周圍 2000 像素範圍內生成物件
+
         # 首先生成永久物件（河流）
         if not self.permanent_objects_generated:
             self._generate_permanent_objects(
-                player_start_x, player_start_y, safe_zone_radius
+                player_start_x, player_start_y, safe_zone_radius, world_range
             )
             self.permanent_objects_generated = True
 
         while objects_created < num_objects and attempts < max_attempts:
-            x = random.randint(50, WINDOW_CONFIG["width"] - 50)
-            y = random.randint(50, WINDOW_CONFIG["height"] - 50)
+            x = random.randint(-world_range, world_range)
+            y = random.randint(-world_range, world_range)
 
             # 檢查是否在玩家安全區域內
             distance_to_player = math.sqrt(
@@ -94,7 +97,11 @@ class WorldManager:
         )
 
     def _generate_permanent_objects(
-        self, player_x: float, player_y: float, safe_zone_radius: float
+        self,
+        player_x: float,
+        player_y: float,
+        safe_zone_radius: float,
+        world_range: int,
     ) -> None:
         """生成永久物件（如河流）"""
         max_rivers = WORLD_CONFIG["river_spawn_limit"]
@@ -102,8 +109,8 @@ class WorldManager:
         for _ in range(max_rivers):
             attempts = 0
             while attempts < 20:  # 限制嘗試次數
-                x = random.randint(100, WINDOW_CONFIG["width"] - 150)
-                y = random.randint(100, WINDOW_CONFIG["height"] - 100)
+                x = random.randint(-world_range + 150, world_range - 150)
+                y = random.randint(-world_range + 100, world_range - 100)
 
                 # 確保不在玩家安全區域
                 distance_to_player = math.sqrt(
@@ -195,7 +202,7 @@ class WorldManager:
         # 怪物生成邏輯 - 只在夜晚生成
         if is_night_time and self.spawn_timer >= self.spawn_interval:
             self.spawn_timer = 0
-            if self._try_spawn_monster():
+            if self._try_spawn_monster(player_x, player_y):
                 messages.append("🌙 黑暗中出現了危險的怪物...")
 
         # 定期生成其他物件（排除河流等永久物件）
@@ -203,7 +210,7 @@ class WorldManager:
             is_day_time and self.spawn_timer >= self.spawn_interval * 2
         ):  # 白天生成間隔更長
             self.spawn_timer = 0
-            self._spawn_random_object()
+            self._spawn_random_object(player_x, player_y)
 
         # 更新怪物行為 - 主動攻擊系統
         for obj in self.objects:
@@ -226,7 +233,7 @@ class WorldManager:
 
         return messages
 
-    def _try_spawn_monster(self) -> bool:
+    def _try_spawn_monster(self, player_x: float = 0, player_y: float = 0) -> bool:
         """嘗試在夜晚生成怪物"""
         max_monsters = 4  # 最多同時存在4個怪物
         current_monsters = len(
@@ -236,58 +243,46 @@ class WorldManager:
         if current_monsters >= max_monsters:
             return False
 
-        # 在螢幕邊緣隨機生成怪物
-        edge = random.choice(["top", "bottom", "left", "right"])
+        # 在玩家視野邊緣外生成怪物（相機系統適配）
+        spawn_distance = 300  # 距離玩家300像素外生成
+        min_spawn_distance = 250  # 最小生成距離
 
-        if edge == "top":
-            x = random.randint(50, WINDOW_CONFIG["width"] - 50)
-            y = 10
-        elif edge == "bottom":
-            x = random.randint(50, WINDOW_CONFIG["width"] - 50)
-            y = WINDOW_CONFIG["height"] - 40
-        elif edge == "left":
-            x = 10
-            y = random.randint(50, WINDOW_CONFIG["height"] - 50)
-        else:  # right
-            x = WINDOW_CONFIG["width"] - 40
-            y = random.randint(50, WINDOW_CONFIG["height"] - 50)
+        attempts = 0
+        while attempts < 10:  # 限制嘗試次數
+            # 隨機角度
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(min_spawn_distance, spawn_distance)
 
-        # 確保生成位置沒有其他物件
-        if self._check_position_clear(x, y, 50):
-            self._spawn_object("monster", x, y)
-            return True
+            # 計算生成位置
+            x = player_x + distance * math.cos(angle)
+            y = player_y + distance * math.sin(angle)
+
+            # 確保生成位置沒有其他物件
+            if self._check_position_clear(x, y, 50):
+                self._spawn_object("monster", x, y)
+                return True
+
+            attempts += 1
 
         return False
 
-    def _spawn_random_object(self) -> None:
+    def _spawn_random_object(self, player_x: float = 0, player_y: float = 0) -> None:
         """隨機生成世界物件（不包括河流）"""
         if len(self.objects) >= WORLD_CONFIG["max_objects"]:
             return
 
-        attempts = 0
-        while attempts < 10:
-            x = random.randint(50, WINDOW_CONFIG["width"] - 50)
-            y = random.randint(50, WINDOW_CONFIG["height"] - 50)
-
-            if self._check_position_clear(x, y, 40):
-                # 選擇物件類型（排除永久物件）
-                obj_type = self._choose_object_type(exclude_permanent=True)
-
-                # 進一步排除河流
-                if obj_type != "river":
-                    self._spawn_object(obj_type, x, y)
-                break
-            attempts += 1
-
-    def _spawn_random_object(self) -> None:
-        """隨機生成世界物件（不包括河流）"""
-        if len(self.objects) >= WORLD_CONFIG["max_objects"]:
-            return
+        # 在玩家周圍適當範圍內生成
+        spawn_range = 800  # 在玩家800像素範圍內生成
+        min_distance = 200  # 距離玩家至少200像素
 
         attempts = 0
         while attempts < 10:
-            x = random.randint(50, WINDOW_CONFIG["width"] - 50)
-            y = random.randint(50, WINDOW_CONFIG["height"] - 50)
+            # 隨機生成位置
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(min_distance, spawn_range)
+
+            x = player_x + distance * math.cos(angle)
+            y = player_y + distance * math.sin(angle)
 
             if self._check_position_clear(x, y, 40):
                 # 選擇物件類型（排除永久物件）
@@ -385,19 +380,30 @@ class WorldManager:
 
         return stats
 
-    def draw(self, screen: pygame.Surface) -> None:
+    def draw(self, screen: pygame.Surface, camera=None) -> None:
         """
         繪製所有世界物件
 
         Args:
             screen: pygame螢幕物件
+            camera: 相機物件，如果提供則使用相機系統
         """
         # 按照深度排序繪製（遠的先畫，近的後畫）
         active_objects = [obj for obj in self.objects if obj.active]
         active_objects.sort(key=lambda obj: obj.y)  # 按Y座標排序
 
         for obj in active_objects:
-            obj.draw(screen)
+            if camera:
+                # 使用相機系統繪製
+                # 只繪製可見的物件以提升效能
+                if camera.is_visible(
+                    obj.x, obj.y, getattr(obj, "width", 0), getattr(obj, "height", 0)
+                ):
+                    screen_x, screen_y = camera.world_to_screen(obj.x, obj.y)
+                    obj.draw_with_camera(screen, screen_x, screen_y)
+            else:
+                # 傳統繪製方式（向後兼容）
+                obj.draw(screen)
 
     def cleanup(self) -> None:
         """清理資源"""

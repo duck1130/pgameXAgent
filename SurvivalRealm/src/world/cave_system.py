@@ -15,7 +15,7 @@ from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 from dataclasses import dataclass
 
 from .game_object import GameObject
-from ..core.config import CAVE_CONFIG, WORLD_OBJECTS, COLORS, WINDOW_CONFIG
+from ..core.config import CAVE_CONFIG, WORLD_OBJECTS, WINDOW_CONFIG
 
 # 避免循環引用
 if TYPE_CHECKING:
@@ -189,6 +189,47 @@ class CaveMonster(GameObject):
         if self.health < self.max_health:
             self._draw_health_bar(screen)
 
+    def draw_with_camera_alpha(
+        self,
+        screen: pygame.Surface,
+        screen_x: int,
+        screen_y: int,
+        darkness_alpha: int = 255,
+    ) -> None:
+        """使用相機座標和透明度繪製怪物"""
+        if not self.active:
+            return
+
+        config = WORLD_OBJECTS[self.monster_type]
+        base_color = config["color"]
+
+        # 根據黑暗程度調整顏色
+        adjusted_color = tuple(int(c * (darkness_alpha / 255.0)) for c in base_color)
+
+        # 創建螢幕矩形
+        screen_rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
+
+        # 繪製怪物本體
+        pygame.draw.ellipse(screen, adjusted_color, screen_rect)
+
+        # 眼睛（在黑暗中發光）
+        eye_color = (
+            (255, 50, 50) if self.monster_type == "cave_monster" else (255, 0, 255)
+        )
+        left_eye = (int(screen_x + self.width * 0.3), int(screen_y + self.height * 0.3))
+        right_eye = (
+            int(screen_x + self.width * 0.7),
+            int(screen_y + self.height * 0.3),
+        )
+
+        eye_size = 4 if self.monster_type == "cave_monster" else 3
+        pygame.draw.circle(screen, eye_color, left_eye, eye_size)
+        pygame.draw.circle(screen, eye_color, right_eye, eye_size)
+
+        # 生命值條
+        if self.health < self.max_health:
+            self._draw_health_bar_at_position(screen, screen_x, screen_y)
+
     def _draw_health_bar(self, screen: pygame.Surface) -> None:
         """繪製生命值條"""
         bar_width = 35
@@ -198,7 +239,22 @@ class CaveMonster(GameObject):
 
         health_width = int((self.health / self.max_health) * bar_width)
         health_rect = pygame.Rect(self.x, self.y - 12, health_width, bar_height)
-        pygame.draw.rect(screen, COLORS["DANGER"], health_rect)
+        health_color = (255, 0, 0) if self.health < 20 else (255, 255, 0)
+        pygame.draw.rect(screen, health_color, health_rect)
+
+    def _draw_health_bar_at_position(
+        self, screen: pygame.Surface, screen_x: int, screen_y: int
+    ) -> None:
+        """在指定位置繪製生命值條"""
+        bar_width = 35
+        bar_height = 4
+        bg_rect = pygame.Rect(screen_x, screen_y - 12, bar_width, bar_height)
+        pygame.draw.rect(screen, (60, 60, 60), bg_rect)
+
+        health_width = int((self.health / self.max_health) * bar_width)
+        health_rect = pygame.Rect(screen_x, screen_y - 12, health_width, bar_height)
+        health_color = (255, 0, 0) if self.health < 20 else (255, 255, 0)
+        pygame.draw.rect(screen, health_color, health_rect)
 
     def interact(self, player: "Player") -> Optional[Dict]:
         """與洞穴怪物戰鬥"""
@@ -318,6 +374,40 @@ class TreasureChest(GameObject):
             )
             glow_surface.fill(glow_color)
             screen.blit(glow_surface, (self.x - 2, self.y - 2))
+
+    def draw_with_camera_alpha(
+        self,
+        screen: pygame.Surface,
+        screen_x: int,
+        screen_y: int,
+        darkness_alpha: int = 255,
+    ) -> None:
+        """使用相機座標和透明度繪製寶箱"""
+        if not self.active:
+            return
+
+        base_color = WORLD_OBJECTS[self.chest_type]["color"]
+        if self.opened:
+            base_color = (139, 69, 19)  # 已開啟的顏色
+
+        # 根據黑暗程度調整
+        adjusted_color = tuple(int(c * (darkness_alpha / 255.0)) for c in base_color)
+
+        # 創建螢幕矩形
+        screen_rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
+
+        pygame.draw.rect(screen, adjusted_color, screen_rect)
+        pygame.draw.rect(screen, (0, 0, 0), screen_rect, 2)
+
+        # 寶箱發光效果（未開啟時）
+        if not self.opened:
+            glow_color = (255, 215, 0, 100)  # 金色光暈
+            # 創建發光表面
+            glow_surface = pygame.Surface(
+                (self.width + 4, self.height + 4), pygame.SRCALPHA
+            )
+            glow_surface.fill(glow_color)
+            screen.blit(glow_surface, (screen_x - 2, screen_y - 2))
 
     def interact(self, player: "Player") -> Optional[Dict]:
         """打開寶箱"""
@@ -448,7 +538,7 @@ class CaveSystem:
             return True
         return False
 
-    def draw(self, screen: pygame.Surface) -> None:
+    def draw(self, screen: pygame.Surface, camera=None) -> None:
         """繪製洞穴場景"""
         if not self.in_cave or not self.current_room:
             return
@@ -476,12 +566,36 @@ class CaveSystem:
         # 繪製怪物
         for monster in self.current_room.monsters:
             if monster.active:
-                monster.draw(screen, light_alpha)
+                if camera:
+                    # 使用相機系統繪製
+                    if camera.is_visible(
+                        monster.x, monster.y, monster.width, monster.height
+                    ):
+                        screen_x, screen_y = camera.world_to_screen(
+                            monster.x, monster.y
+                        )
+                        monster.draw_with_camera_alpha(
+                            screen, screen_x, screen_y, light_alpha
+                        )
+                else:
+                    monster.draw(screen, light_alpha)
 
         # 繪製寶箱
         for treasure in self.current_room.treasures:
             if treasure.active:
-                treasure.draw(screen, light_alpha)
+                if camera:
+                    # 使用相機系統繪製
+                    if camera.is_visible(
+                        treasure.x, treasure.y, treasure.width, treasure.height
+                    ):
+                        screen_x, screen_y = camera.world_to_screen(
+                            treasure.x, treasure.y
+                        )
+                        treasure.draw_with_camera_alpha(
+                            screen, screen_x, screen_y, light_alpha
+                        )
+                else:
+                    treasure.draw(screen, light_alpha)
 
     def get_cave_objects(self) -> List[GameObject]:
         """獲取當前洞穴中的所有物件"""
