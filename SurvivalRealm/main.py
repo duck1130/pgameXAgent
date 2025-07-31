@@ -106,7 +106,7 @@ class Game:
         print("   F - 消耗食物")
         print("   I - 開啟/關閉物品欄")
         print("   C - 製作介面 (1=斧頭 2=稿子 3=水桶 4=工作台 5=熔爐 6=鐵劍 7=鐵甲)")
-        print("   S - 燒製介面 (需靠近熔爐，1=燒製鐵錠)")
+        print("   T - 燒製介面 (需靠近熔爐，1=燒製鐵錠)")
         print("   P - 放置建築物 (工作台/熔爐)")
         print("   M - 切換背景音樂")
         print("   + - 增加音量")
@@ -218,8 +218,8 @@ class Game:
                 )
                 self.add_message("退出製作模式")
 
-        elif key == pygame.K_s:
-            # 燒製介面
+        elif key == pygame.K_t:
+            # 燒製介面 (T key - smelTing)
             if not self._is_near_furnace():
                 self.add_message("需要靠近熔爐才能進入燒製模式！")
                 return
