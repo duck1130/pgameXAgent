@@ -446,6 +446,47 @@ class ItemDatabase:
             )
         )
 
+        # ====== Boss戰系統物品 ======
+        self._add_item(
+            Item(
+                "depth_key",
+                "深度鑰匙",
+                ItemType.VALUABLE,
+                1,
+                "擊敗Boss獲得的鑰匙，用於解鎖下一層洞穴",
+            )
+        )
+
+        self._add_item(
+            Item(
+                "boss_trophy",
+                "Boss戰利品",
+                ItemType.VALUABLE,
+                1,
+                "擊敗Boss的榮譽證明，極其珍貴",
+            )
+        )
+
+        self._add_item(
+            Item(
+                "ancient_artifact",
+                "古代神器",
+                ItemType.VALUABLE,
+                1,
+                "來自洞穴深處的神秘古代神器",
+            )
+        )
+
+        self._add_item(
+            Item(
+                "magic_crystal",
+                "魔法水晶",
+                ItemType.VALUABLE,
+                1,
+                "蘊含魔力的神秘水晶，閃爍著神秘光芒",
+            )
+        )
+
     def _add_item(self, item: Item) -> None:
         """添加物品到資料庫"""
         self._items[item.id] = item

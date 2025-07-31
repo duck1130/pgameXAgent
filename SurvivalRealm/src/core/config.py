@@ -169,30 +169,35 @@ CAVE_CONFIG = {
     "min_depth": 3,  # 最小深度層數
     "max_depth": 7,  # 最大深度層數
     "room_size": {"width": 800, "height": 600},  # 洞穴房間大小
-    "monster_spawn_rate": 0.3,  # 洞穴內怪物生成率
-    "treasure_spawn_rate": 0.15,  # 寶藏生成率
-    "mineral_spawn_rate": 0.4,  # 礦物生成率
+    "monster_spawn_rate": 0.5,  # 🔥 增加洞穴內怪物生成率（0.4 -> 0.5）
+    "treasure_spawn_rate": 0.6,  # 💎 大幅增加寶藏生成率（0.25 -> 0.6）
+    "mineral_spawn_rate": 0.9,  # ⛏️ 大幅增加礦物生成率（0.5 -> 0.9）
     "torch_duration": 300,  # 火把持續時間（秒）
     "darkness_damage": 1,  # 黑暗中每秒受到的傷害
+    # 🆕 Boss戰系統配置
+    "boss_per_level": True,  # 每層都有boss
+    "boss_health_multiplier": 3.0,  # boss血量倍數
+    "boss_damage_multiplier": 2.0,  # boss傷害倍數
+    "key_drop_rate": 1.0,  # boss掉落鑰匙機率（100%）
 }
 
 # ====== 世界物件配置 ======
 
 WORLD_OBJECTS = {
     "tree": {
-        "spawn_rate": 0.3,
+        "spawn_rate": 0.4,  # 🌲 增加樹木生成率（0.3 -> 0.4）
         "color": (34, 139, 34),
         "size": (40, 60),
         "health": 5,
     },
     "rock": {
-        "spawn_rate": 0.25,
+        "spawn_rate": 0.35,  # ⛰️ 增加石頭生成率（0.25 -> 0.35）
         "color": (128, 128, 128),
         "size": (30, 25),
         "health": 8,
     },
     "food": {
-        "spawn_rate": 0.2,
+        "spawn_rate": 0.3,  # 🍎 增加食物生成率（0.2 -> 0.3）
         "color": (255, 140, 0),
         "size": (20, 20),
     },
@@ -203,18 +208,18 @@ WORLD_OBJECTS = {
         "is_permanent": True,  # 新增：標記為永久物件，不會重複生成
     },
     "chest": {
-        "spawn_rate": 0.03,
+        "spawn_rate": 0.08,  # 📦 增加寶箱生成率（0.03 -> 0.08）
         "color": (139, 69, 19),
         "size": (30, 25),
     },
     "cave": {
-        "spawn_rate": 0.08,  # 增加洞穴生成率
+        "spawn_rate": 0.12,  # 🕳️ 增加洞穴生成率（0.08 -> 0.12）
         "color": (64, 64, 64),
         "size": (80, 60),
         "can_enter": True,  # 新增：可進入標記
     },
     "monster": {
-        "spawn_rate": 0.15,
+        "spawn_rate": 0.2,  # 👹 增加怪物生成率（0.15 -> 0.2）
         "color": (139, 0, 139),
         "size": (35, 30),
         "health": 15,
@@ -262,14 +267,35 @@ WORLD_OBJECTS = {
         "color": (255, 215, 0),  # 金色
         "size": (35, 30),
     },
+    # 🆕 Boss系統
+    "cave_boss": {
+        "spawn_rate": 0.0,  # 不自動生成，特殊生成
+        "color": (200, 0, 0),  # 深紅色，比普通怪物更大更恐怖
+        "size": (60, 50),  # 比普通怪物大
+        "health": 75,  # 基礎血量，會根據層數調整
+        "damage": 25,  # 基礎傷害，會根據層數調整
+        "attack_cooldown": 1.0,  # 攻擊頻率較高
+        "attack_range": 80,  # 更大的攻擊範圍
+        "chase_range": 200,  # 更大的追擊範圍
+        "is_aggressive": True,
+        "is_boss": True,  # 標記為boss
+        "experience_reward": 50,  # 擊敗後的經驗獎勵
+    },
+    # 🔑 深度鑰匙系統
+    "depth_key": {
+        "spawn_rate": 0.0,  # 只能從boss掉落
+        "color": (255, 215, 0),  # 金色鑰匙
+        "size": (20, 15),
+        "is_key": True,  # 標記為鑰匙物品
+    },
 }
 
 # ====== 世界生成參數 ======
 
 WORLD_CONFIG = {
-    "initial_objects": 50,  # 初始物件數量
-    "max_objects": 60,  # 最大物件數量
-    "spawn_interval": 5.0,  # 生成間隔(秒)
+    "initial_objects": 100,  # 🚀 增加初始物件數量（50 -> 100）
+    "max_objects": 100,  # 📈 增加最大物件數量（60 -> 100）
+    "spawn_interval": 1.0,  # ⚡ 減少生成間隔，加快生成速度（5.0 -> 1.0 秒）
     "safe_zone_radius": 60,  # 玩家周圍安全區域
     "river_spawn_limit": 5,  # 新增：世界中河流的最大數量
     "permanent_objects_generated": False,  # 新增：是否已生成永久物件
@@ -289,7 +315,7 @@ import platform
 
 # 根據操作系統選擇字體路徑
 def get_font_config():
-    """獲取操作系統相應的字體配置"""
+    """獲取操作系統相應的字體配置 - 優化中文顯示"""
     system = platform.system()
 
     if system == "Windows":
@@ -298,16 +324,19 @@ def get_font_config():
             "font_fallback": [
                 "C:/Windows/Fonts/simhei.ttf",  # 黑體
                 "C:/Windows/Fonts/simsun.ttc",  # 宋體
+                "C:/Windows/Fonts/msyh.ttc",  # 微軟雅黑
                 None,  # 系統預設
             ],
         }
     elif system == "Darwin":  # macOS
         return {
-            "font_path": "/System/Library/Fonts/PingFang.ttc",  # 蘋方字體（最佳中文字體）
+            "font_path": "/System/Library/Fonts/Hiragino Sans GB.ttc",  # 🎯 冬青黑體簡體中文（最佳中文顯示）
             "font_fallback": [
-                "/System/Library/Fonts/Hiragino Sans GB.ttc",  # 冬青黑體簡體中文
+                "/System/Library/Fonts/PingFang.ttc",  # 蘋方字體
                 "/System/Library/Fonts/STHeiti Light.ttc",  # 華文黑體
                 "/System/Library/Fonts/Supplemental/Songti.ttc",  # 宋體
+                "/System/Library/Fonts/Supplemental/STSong.ttf",  # 華文宋體
+                "/System/Library/Fonts/Supplemental/Kaiti.ttc",  # 楷體
                 "/Library/Fonts/Arial Unicode MS.ttf",  # Arial Unicode MS
                 "/System/Library/Fonts/Helvetica.ttc",  # 系統字體
                 None,  # 系統預設
@@ -315,10 +344,10 @@ def get_font_config():
         }
     else:  # Linux 和其他系統
         return {
-            "font_path": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "font_path": "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",  # 優先使用文泉驛正黑
             "font_fallback": [
-                "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",  # 文泉驛正黑
                 "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",  # 文泉驛微米黑
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
                 "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
                 None,  # 系統預設
             ],

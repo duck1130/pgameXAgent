@@ -16,7 +16,7 @@ import time
 from typing import List, Tuple, Optional
 
 # 導入遊戲模組
-from src.core.config import WINDOW_CONFIG, COLORS, GameState, UI_CONFIG
+from src.core.config import WINDOW_CONFIG, COLORS, GameState, UI_CONFIG, CAVE_CONFIG
 from src.systems.inventory import item_database
 
 
@@ -58,7 +58,7 @@ class Game:
         # 洞穴系統
         self.cave_system = cave_system
         self.pending_cave_entry = None  # 待進入的洞穴信息
-        print("🕳️ 洞穴探險系統初始化完成！")
+        print("洞穴探險系統初始化完成！")
 
         # 相機系統
         self.camera = camera
@@ -149,8 +149,8 @@ class Game:
         )
         print("   ESC - 暫停/繼續遊戲")
         print("   Q - 退出遊戲")
-        print("💡 提示: 製作和裝備使用統一的 1-8 按鍵映射！")
-        print("🕳️ 洞穴探險: 找到洞穴後需要火把才能進入，小心黑暗和怪物！")
+        print("提示: 製作和裝備使用統一的 1-8 按鍵映射！")
+        print("洞穴探險: 找到洞穴後需要火把才能進入，小心黑暗和怪物！")
         print("🌊 稀有河流: 河流不會重新生成，珍惜每一個水源！")
 
     def handle_events(self) -> None:
@@ -171,7 +171,9 @@ class Game:
             elif event.type == pygame.MOUSEWHEEL:
                 # 處理滾輪事件（在製作界面中）
                 if self.state == GameState.CRAFTING:
-                    self.ui.crafting_scroll_offset -= event.y  # 向上滾動減少偏移
+                    self.ui.crafting_scroll_offset -= (
+                        event.y * 20
+                    )  # 向上滾動減少偏移，增加滾動速度
 
     def _handle_keydown(self, key: int) -> None:
         """處理按鍵按下事件"""
@@ -224,8 +226,23 @@ class Game:
                             result = obj.interact(self.player)
                             if result:
                                 self.add_message(result["message"])
+
+                                # 🆕 處理Boss戰結果
+                                if result.get("boss_defeated"):
+                                    depth = result.get("depth", 1)
+                                    self.cave_system.handle_boss_death(depth)
+                                    self.add_message(
+                                        f"獲得了第{depth + 1}層的入場鑰匙！"
+                                    )
+
+                                # 處理物品掉落
                                 if "items" in result:
                                     for item_id, amount in result["items"]:
+                                        # 🆕 特殊處理深度鑰匙
+                                        if item_id == "depth_key":
+                                            # 不添加到背包，直接解鎖權限
+                                            continue
+
                                         item = item_database.get_item(item_id)
                                         if item:
                                             self.player.inventory.add_item(item, amount)
@@ -261,7 +278,7 @@ class Game:
                         f"🍎 消耗食物！飢餓值恢復了 {hunger_gained:.1f} 點 (當前: {new_hunger:.1f}/100)"
                     )
                 else:
-                    self.add_message("❌ 沒有食物可以消耗！需要收集漿果或其他食物")
+                    self.add_message("沒有食物可以消耗！需要收集漿果或其他食物")
 
         elif key == pygame.K_l:  # L鍵 - 使用照明工具
             if self.cave_system.in_cave:
@@ -315,7 +332,7 @@ class Game:
                 else:
                     self.state = GameState.PLAYING
                     print(
-                        f"❌ 退出製作模式！新狀態: {self.state}, 製作模式: {self.player.crafting_mode}"
+                        f"退出製作模式！新狀態: {self.state}, 製作模式: {self.player.crafting_mode}"
                     )
                     self.add_message("退出製作模式")
 
@@ -383,14 +400,14 @@ class Game:
             self._handle_crafting(number)
         # 檢查雙重條件 - 燒製模式
         elif self.player.smelting_mode or self.state == GameState.SMELTING:
-            print(f"🔥 調試：進入燒製條件分支，呼叫燒製處理")
+            print(f"調試：進入燒製條件分支，呼叫燒製處理")
             self._handle_smelting(number)
         # 物品欄狀態
         elif self.state == GameState.INVENTORY:
             print(f"🎒 調試：在物品欄狀態")
             # 在物品欄中，數字鍵可能有不同行為
         else:
-            print(f"⚔️ 調試：在其他狀態 ({self.state})，嘗試裝備")
+            print(f"調試：在其他狀態 ({self.state})，嘗試裝備")
             self._handle_equipment(number)
 
     def _handle_crafting(self, number: int) -> None:
@@ -425,7 +442,7 @@ class Game:
 
             # 工作台和火把可以隨時製作（基礎製作）
             if item_id in ["workbench", "torch"]:
-                print(f"🏗️ 調試：製作基礎物品 {item_id}，呼叫 _craft_item")
+                print(f"調試：製作基礎物品 {item_id}，呼叫 _craft_item")
                 message = self._craft_item(item_id)
                 print(f"📝 調試：製作結果訊息: {message}")
                 if message:
@@ -434,7 +451,7 @@ class Game:
 
             # 其他物品需要靠近工作台才能製作（高級製作）
             if not self._is_near_workbench():
-                print(f"❌ 調試：不在工作台附近，無法製作 {item_id}")
+                print(f"調試：不在工作台附近，無法製作 {item_id}")
                 self.add_message(f"製作 {item_id} 需要靠近工作台！")
                 return
 
@@ -444,7 +461,7 @@ class Game:
             if message:
                 self.add_message(message)
         else:
-            print(f"❌ 調試：數字 {number} 超出範圍 (1-{len(recipes)})")
+            print(f"調試：數字 {number} 超出範圍 (1-{len(recipes)})")
             self.add_message(
                 "請按 1-8：1=斧頭 2=稿子 3=水桶 4=火把 5=工作台 6=熔爐 7=鐵劍 8=鐵甲"
             )
@@ -480,7 +497,7 @@ class Game:
 
             # 建築物不能裝備，只能放置
             if item_id in ["workbench", "furnace"]:
-                self.add_message(f"❌ {item_id} 是建築物，按 P 鍵放置！")
+                self.add_message(f"{item_id} 是建築物，按 P 鍵放置！")
                 return
 
             if self.player.inventory.has_item(item_id, 1):
@@ -490,7 +507,7 @@ class Game:
             else:
                 item = item_database.get_item(item_id)
                 if item:
-                    self.add_message(f"❌ 你沒有 {item.name}，需要先製作！")
+                    self.add_message(f"你沒有 {item.name}，需要先製作！")
         else:
             self.add_message(
                 "請按 1-7：1=斧頭 2=稿子 3=水桶 4=工作台 5=熔爐 6=鐵劍 7=鐵甲"
@@ -501,13 +518,13 @@ class Game:
         from src.core.config import ITEM_RECIPES
 
         if item_id not in ITEM_RECIPES:
-            return "❌ 無法製作此物品"
+            return "無法製作此物品"
 
         recipe = ITEM_RECIPES[item_id]
         item = item_database.get_item(item_id)
 
         if not item:
-            return "❌ 物品不存在"
+            return "物品不存在"
 
         # 檢查材料
         missing_materials = []
@@ -517,13 +534,13 @@ class Game:
                 missing_materials.append(f"{material} (需要{amount}，擁有{owned})")
 
         if missing_materials:
-            return f"❌ 缺少材料: {', '.join(missing_materials)}"
+            return f"缺少材料: {', '.join(missing_materials)}"
 
         # 檢查物品欄空間
         if self.player.inventory.is_full():
             empty_slots = self.player.inventory.get_empty_slots()
             if empty_slots == 0:
-                return "❌ 物品欄已滿，無法製作！請先清理物品欄"
+                return "物品欄已滿，無法製作！請先清理物品欄"
 
         # 消耗材料
         consumed_materials = []
@@ -543,9 +560,9 @@ class Game:
                 mat_item = item_database.get_item(material)
                 if mat_item:
                     self.player.inventory.add_item(mat_item, amount)
-            return "❌ 物品欄已滿，製作失敗！材料已退還"
+            return "物品欄已滿，製作失敗！材料已退還"
 
-        return "❌ 製作失敗，未知錯誤"
+        return "製作失敗，未知錯誤"
 
     def _smelt_item(self, item_id: str) -> Optional[str]:
         """燒製物品邏輯"""
@@ -739,19 +756,41 @@ class Game:
             self.add_message(result["message"])
 
     def enter_cave(self) -> None:
-        """進入洞穴"""
+        """進入洞穴 - 支援深度選擇和鑰匙檢查"""
         if self.pending_cave_entry:
-            depth = self.pending_cave_entry.get("cave_depth", 1)
+            base_depth = self.pending_cave_entry.get("cave_depth", 1)
+
+            # 🆕 讓玩家選擇要進入的深度
+            max_depth = min(
+                self.cave_system.max_unlocked_depth, CAVE_CONFIG["max_depth"]
+            )
+
+            # 簡化版本：直接進入最深可到達的層數
+            # 未來可以加入UI讓玩家選擇
+            depth = max_depth
+
+            # 檢查鑰匙權限
+            if depth > self.cave_system.max_unlocked_depth:
+                self.add_message(f"你需要第{depth-1}層的鑰匙才能進入第{depth}層！")
+                self.pending_cave_entry = None
+                return
 
             # 使用火把或洞穴燈
             if self.cave_system.use_torch(self.player):
                 self.add_message("點燃火把，準備探險！")
             elif self.cave_system.use_cave_lamp(self.player):
                 self.add_message("開啟洞穴燈，準備深入探險！")
+            else:
+                self.add_message("沒有照明工具！黑暗中會很危險！")
 
             # 進入洞穴
-            self.cave_system.enter_cave(depth)
-            self.add_message(f"進入了 {depth} 層深的洞穴！小心黑暗中的危險...")
+            room = self.cave_system.enter_cave(depth)
+            if room:
+                boss_info = "有強大的Boss守護" if room.boss else "沒有Boss"
+                self.add_message(f"進入了第 {depth} 層洞穴！({boss_info})")
+                self.add_message(f"此層充滿了大量怪物和寶藏！小心探索！")
+            else:
+                self.add_message("無法進入此層洞穴！")
 
             self.pending_cave_entry = None
 

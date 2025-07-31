@@ -27,13 +27,68 @@ class UI:
         """初始化UI系統"""
         print("🔍 開始載入字體...")
         self.fonts = self._load_fonts()  # 將返回的字體字典賦值給self.fonts
-        print("✅ UI系統初始化完成！")
-
-        # 添加滾輪狀態
         self.crafting_scroll_offset = 0  # 製作界面滾輪偏移量
+        print("UI系統初始化完成！")
+
+    def _get_all_recipes(self):
+        """獲取所有配方的統一列表，用於滾輪計算"""
+        recipe_categories = {
+            "基礎工具": {
+                "axe": {
+                    "materials": {"wood": 3, "stone": 2},
+                    "name": "斧頭",
+                    "desc": "砍伐樹木的利器",
+                },
+                "pickaxe": {
+                    "materials": {"wood": 2, "stone": 3},
+                    "name": "稿子",
+                    "desc": "挖掘石頭和礦物",
+                },
+                "bucket": {
+                    "materials": {"wood": 4, "stone": 1},
+                    "name": "木桶",
+                    "desc": "更有效地飲用河水",
+                },
+                "torch": {
+                    "materials": {"wood": 1, "coal": 1},
+                    "name": "火把",
+                    "desc": "照亮黑暗的洞穴",
+                },
+            },
+            "建築設施": {
+                "workbench": {
+                    "materials": {"wood": 4},
+                    "name": "工作台",
+                    "desc": "製作高級物品必需",
+                },
+                "furnace": {
+                    "materials": {"stone": 8},
+                    "name": "熔爐",
+                    "desc": "燒製礦物成錠",
+                },
+            },
+            "戰鬥裝備": {
+                "iron_sword": {
+                    "materials": {"iron_ingot": 2, "wood": 1},
+                    "name": "鐵劍",
+                    "desc": "強力的戰鬥武器",
+                },
+                "iron_armor": {
+                    "materials": {"iron_ingot": 5},
+                    "name": "鐵甲",
+                    "desc": "抵禦怪物攻擊",
+                },
+            },
+        }
+
+        all_recipes = []
+        for category_name, recipes in recipe_categories.items():
+            for item_id, recipe_data in recipes.items():
+                all_recipes.append((category_name, item_id, recipe_data))
+        return all_recipes
 
     def _load_fonts(self) -> dict:
-        """載入字體，針對不同操作系統優化"""
+        """載入字體，針對不同操作系統優化 - 智能中文字體選擇"""
         fonts = {}
         font_sizes = UI_CONFIG["font_size"]
 
@@ -47,24 +102,33 @@ class UI:
         # 檢查系統可用字體
         self._check_system_fonts()
 
+        # 智能選擇最佳中文字體
+        best_font_path = self._find_best_chinese_font([font_path] + fallback_paths)
+
         for size_name, size in font_sizes.items():
             font_loaded = False
             loaded_font_info = ""
 
-            # 嘗試主字體
-            try:
-                fonts[size_name] = pygame.font.Font(font_path, size)
-                font_loaded = True
-                loaded_font_info = f"主字體: {font_path}"
-                if size_name == "large":  # 只打印一次
-                    print(f"✅ {loaded_font_info}")
-            except (FileNotFoundError, OSError) as e:
-                if size_name == "large":
-                    print(f"❌ 主字體載入失敗: {font_path}")
+            # 嘗試最佳字體
+            if best_font_path:
+                try:
+                    if best_font_path is None:
+                        fonts[size_name] = pygame.font.Font(None, size)
+                        loaded_font_info = "系統預設字體"
+                    else:
+                        fonts[size_name] = pygame.font.Font(best_font_path, size)
+                        loaded_font_info = f"最佳字體: {best_font_path}"
 
-            # 嘗試備用字體
+                    font_loaded = True
+                    if size_name == "large":  # 只打印一次
+                        print(f"✅ {loaded_font_info}")
+                except (FileNotFoundError, OSError) as e:
+                    if size_name == "large":
+                        print(f"❌ 最佳字體載入失敗: {best_font_path}")
+
+            # 如果最佳字體失敗，嘗試所有備用字體
             if not font_loaded:
-                for i, fallback_path in enumerate(fallback_paths):
+                for i, fallback_path in enumerate([font_path] + fallback_paths):
                     try:
                         if fallback_path is None:
                             fonts[size_name] = pygame.font.Font(None, size)
@@ -94,37 +158,102 @@ class UI:
 
         return fonts
 
+    def _find_best_chinese_font(self, font_paths: list) -> str:
+        """智能選擇最適合的中文字體"""
+        import os
+
+        print("🔍 智能選擇最佳中文字體...")
+
+        # 字體優先級（基於中文顯示效果）
+        font_priority = {
+            # macOS 字體
+            "/System/Library/Fonts/Hiragino Sans GB.ttc": 95,  # 冬青黑體簡體 - 最佳
+            "/System/Library/Fonts/PingFang.ttc": 90,  # 蘋方 - 優秀
+            "/System/Library/Fonts/STHeiti Light.ttc": 85,  # 華文黑體 - 良好
+            "/System/Library/Fonts/Supplemental/Songti.ttc": 80,  # 宋體 - 可用
+            # Windows 字體
+            "C:/Windows/Fonts/msjh.ttc": 95,  # 微軟正黑體 - 最佳
+            "C:/Windows/Fonts/msyh.ttc": 90,  # 微軟雅黑 - 優秀
+            "C:/Windows/Fonts/simhei.ttf": 85,  # 黑體 - 良好
+            "C:/Windows/Fonts/simsun.ttc": 70,  # 宋體 - 可用
+            # Linux 字體
+            "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc": 90,  # 文泉驛正黑 - 優秀
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc": 85,  # 文泉驛微米黑 - 良好
+        }
+
+        best_font = None
+        best_score = 0
+
+        for font_path in font_paths:
+            if font_path is None:
+                continue
+
+            if os.path.exists(font_path):
+                score = font_priority.get(font_path, 50)  # 預設分數 50
+                print(f"🎯 發現字體: {font_path} (評分: {score})")
+
+                if score > best_score:
+                    best_score = score
+                    best_font = font_path
+            else:
+                print(f"❌ 字體不存在: {font_path}")
+
+        if best_font:
+            print(f"🏆 選擇最佳字體: {best_font} (評分: {best_score})")
+        else:
+            print("⚠️  未找到合適的中文字體，將使用系統預設")
+            best_font = None
+
+        return best_font
+
     def _check_system_fonts(self) -> None:
-        """檢查系統可用字體（僅在 macOS 上）"""
+        """檢查系統可用字體（所有系統）"""
         import platform
         import os
 
-        if platform.system() != "Darwin":
-            return
+        system = platform.system()
+        print(f"🔎 檢查 {system} 系統字體...")
 
-        print("🔎 檢查 macOS 系統字體...")
-
-        # macOS 常見中文字體路徑
-        common_fonts = [
-            ("/System/Library/Fonts/PingFang.ttc", "蘋方"),
-            ("/System/Library/Fonts/Hiragino Sans GB.ttc", "冬青黑體簡體"),
-            ("/System/Library/Fonts/STHeiti Light.ttc", "華文黑體"),
-            ("/System/Library/Fonts/Supplemental/Songti.ttc", "宋體"),
-            ("/Library/Fonts/Arial Unicode MS.ttf", "Arial Unicode MS"),
-        ]
+        if system == "Darwin":  # macOS
+            # macOS 常見中文字體路徑
+            common_fonts = [
+                ("/System/Library/Fonts/Hiragino Sans GB.ttc", "冬青黑體簡體"),
+                ("/System/Library/Fonts/PingFang.ttc", "蘋方"),
+                ("/System/Library/Fonts/STHeiti Light.ttc", "華文黑體"),
+                ("/System/Library/Fonts/Supplemental/Songti.ttc", "宋體"),
+                ("/System/Library/Fonts/Supplemental/STSong.ttf", "華文宋體"),
+                ("/System/Library/Fonts/Supplemental/Kaiti.ttc", "楷體"),
+                ("/Library/Fonts/Arial Unicode MS.ttf", "Arial Unicode MS"),
+            ]
+        elif system == "Windows":  # Windows
+            common_fonts = [
+                ("C:/Windows/Fonts/msjh.ttc", "微軟正黑體"),
+                ("C:/Windows/Fonts/msyh.ttc", "微軟雅黑"),
+                ("C:/Windows/Fonts/simhei.ttf", "黑體"),
+                ("C:/Windows/Fonts/simsun.ttc", "宋體"),
+                ("C:/Windows/Fonts/mingliu.ttc", "細明體"),
+            ]
+        else:  # Linux
+            common_fonts = [
+                ("/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc", "文泉驛正黑"),
+                ("/usr/share/fonts/truetype/wqy/wqy-microhei.ttc", "文泉驛微米黑"),
+                ("/usr/share/fonts/truetype/arphic/uming.ttc", "AR PL UMing"),
+                ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "DejaVu Sans"),
+            ]
 
         available_fonts = []
         for font_path, font_name in common_fonts:
             if os.path.exists(font_path):
                 available_fonts.append(font_name)
-                print(f"✅ 發現字體: {font_name}")
+                print(f"✅ 發現字體: {font_name} ({font_path})")
             else:
-                print(f"❌ 未發現: {font_name}")
+                print(f"❌ 未發現: {font_name} ({font_path})")
 
         if available_fonts:
             print(f"🎉 共發現 {len(available_fonts)} 個中文字體")
         else:
             print("⚠️  未發現專用中文字體，將使用系統預設字體")
+            print("💡 建議安裝中文字體以獲得更好的顯示效果")
 
     def _get_system_name(self) -> str:
         """獲取系統名稱"""
@@ -137,22 +266,48 @@ class UI:
         return system_names.get(system, system)
 
     def _test_chinese_font_support(self, font) -> None:
-        """測試字體對中文的支援程度"""
-        test_chars = ["你好", "遊戲", "生存", "🎮"]
+        """測試字體對中文的支援程度 - 增強版"""
+        test_chars = [
+            ("你好", "基本中文"),
+            ("遊戲", "繁體中文"),
+            ("生存", "簡體中文"),
+            ("製作", "製作相關"),
+            ("物品欄", "介面文字"),
+            ("🎮", "表情符號"),
+            ("🔨", "工具符號"),
+            ("⚔️", "武器符號"),
+        ]
 
         print("🧪 測試中文字體支援...")
+        successful_renders = 0
 
-        for char_test in test_chars:
+        for char_test, description in test_chars:
             try:
                 # 嘗試渲染測試字符
                 test_surface = font.render(char_test, True, (255, 255, 255))
                 # 如果渲染成功且有實際內容
                 if test_surface.get_width() > 0 and test_surface.get_height() > 0:
-                    print(f"✅ 字符 '{char_test}' 支援良好")
+                    print(f"✅ {description} '{char_test}' 支援良好")
+                    successful_renders += 1
                 else:
-                    print(f"⚠️  字符 '{char_test}' 可能顯示為方框")
+                    print(f"⚠️  {description} '{char_test}' 可能顯示為方框")
             except Exception as e:
-                print(f"❌ 字符 '{char_test}' 渲染失敗: {e}")
+                print(f"❌ {description} '{char_test}' 渲染失敗: {e}")
+
+        # 計算支援率
+        support_rate = (successful_renders / len(test_chars)) * 100
+        print(
+            f"🎯 字體中文支援率: {support_rate:.1f}% ({successful_renders}/{len(test_chars)})"
+        )
+
+        if support_rate >= 90:
+            print("🎉 字體中文支援優秀！")
+        elif support_rate >= 70:
+            print("👍 字體中文支援良好")
+        elif support_rate >= 50:
+            print("⚠️  字體中文支援一般，部分文字可能顯示異常")
+        else:
+            print("❌ 字體中文支援較差，建議檢查字體配置")
 
         print("🎯 字體測試完成！")
 
@@ -466,9 +621,9 @@ class UI:
     def draw_crafting_interface(
         self, screen: pygame.Surface, player: "Player", world_manager=None
     ) -> None:
-        """繪製重新設計的製作介面 - 更清晰易懂的佈局"""
-        craft_width = 720  # 稍微增加寬度
-        craft_height = 600  # 增加高度以容納更明顯的文字
+        """繪製支持滾輪的製作介面 - 垂直列表佈局"""
+        craft_width = 720
+        craft_height = 600
         craft_x = (WINDOW_CONFIG["width"] - craft_width) // 2
         craft_y = (WINDOW_CONFIG["height"] - craft_height) // 2
 
@@ -477,367 +632,291 @@ class UI:
         pygame.draw.rect(screen, COLORS["UI_PANEL"], bg_rect)
         pygame.draw.rect(screen, COLORS["UI_BORDER"], bg_rect, 3)
 
-        # 標題區域 - 讓標題更明顯
-        title_rect = pygame.Rect(craft_x, craft_y, craft_width, 60)  # 增加高度
+        # 標題區域
+        title_rect = pygame.Rect(craft_x, craft_y, craft_width, 60)
         pygame.draw.rect(screen, COLORS["INFO"], title_rect)
-        pygame.draw.rect(screen, COLORS["UI_BORDER"], title_rect, 3)  # 加粗邊框
+        pygame.draw.rect(screen, COLORS["UI_BORDER"], title_rect, 3)
 
-        # 添加標題陰影效果
+        # 標題文字
         self.draw_centered_text(
             screen,
-            "🔨 製作工坊 🔨",
-            craft_x + craft_width // 2 + 2,
-            craft_y + 32,  # 陰影位置
-            (0, 0, 0),  # 黑色陰影
-            "large",
-        )
-        self.draw_centered_text(
-            screen,
-            "🔨 製作工坊 🔨",
+            "製作工坊",
             craft_x + craft_width // 2,
             craft_y + 30,
-            (255, 255, 255),  # 白色文字
+            (255, 255, 255),
             "large",
-        )  # 分類區域的配方，按類型分組
+        )
+
+        # 配方資料
         recipe_categories = {
             "基礎工具": {
                 "axe": {
                     "materials": {"wood": 3, "stone": 2},
-                    "name": "🪓 斧頭",
+                    "name": "斧頭",
                     "desc": "砍伐樹木的利器",
                 },
                 "pickaxe": {
                     "materials": {"wood": 2, "stone": 3},
-                    "name": "⛏️ 稿子",
+                    "name": "稿子",
                     "desc": "挖掘石頭和礦物",
                 },
                 "bucket": {
                     "materials": {"wood": 4, "stone": 1},
-                    "name": "🪣 木桶",
+                    "name": "木桶",
                     "desc": "更有效地飲用河水",
                 },
                 "torch": {
                     "materials": {"wood": 1, "coal": 1},
-                    "name": "🕯️ 火把",
+                    "name": "火把",
                     "desc": "照亮黑暗的洞穴",
                 },
             },
             "建築設施": {
                 "workbench": {
                     "materials": {"wood": 4},
-                    "name": "🔧 工作台",
+                    "name": "工作台",
                     "desc": "製作高級物品必需",
                 },
                 "furnace": {
                     "materials": {"stone": 8},
-                    "name": "🔥 熔爐",
+                    "name": "熔爐",
                     "desc": "燒製礦物成錠",
                 },
             },
             "戰鬥裝備": {
                 "iron_sword": {
                     "materials": {"iron_ingot": 2, "wood": 1},
-                    "name": "⚔️ 鐵劍",
+                    "name": "鐵劍",
                     "desc": "強力的戰鬥武器",
                 },
                 "iron_armor": {
                     "materials": {"iron_ingot": 5},
-                    "name": "🛡️ 鐵甲",
+                    "name": "鐵甲",
                     "desc": "抵禦怪物攻擊",
                 },
             },
         }
 
-        # 檢查是否靠近工作台
+        # 檢查工作台
         has_workbench = self._player_near_workbench(player, world_manager)
 
-        # 繪製分類和配方
-        content_y = craft_y + 70  # 調整因為標題高度增加
-        content_height = craft_height - 130  # 調整對應高度
+        # 內容區域設定
+        content_area = pygame.Rect(
+            craft_x + 10, craft_y + 70, craft_width - 20, craft_height - 140
+        )
 
-        # 分為三列顯示不同類別
-        col_width = (craft_width - 60) // 3  # 三列，預留邊距
-        col_x_positions = [
-            craft_x + 20,
-            craft_x + 20 + col_width,
-            craft_x + 20 + col_width * 2,
-        ]
+        # 計算總內容高度
+        total_items = sum(len(recipes) for recipes in recipe_categories.values()) + len(
+            recipe_categories
+        )
+        total_content_height = total_items * 110  # 每個物品 100px + 間距 10px
 
-        recipe_index = 1  # 用於數字鍵映射
+        # 限制滾輪範圍
+        max_scroll = max(0, total_content_height - content_area.height)
+        self.crafting_scroll_offset = max(
+            0, min(self.crafting_scroll_offset, max_scroll)
+        )
 
-        for col_idx, (category_name, recipes) in enumerate(recipe_categories.items()):
-            if col_idx >= 3:  # 最多三列
-                break
+        # 設置裁剪區域
+        screen.set_clip(content_area)
 
-            col_x = col_x_positions[col_idx]
+        # 繪製內容
+        current_y = content_area.y - self.crafting_scroll_offset
+        recipe_index = 1
 
-            # 分類標題 - 增強視覺效果
-            category_rect = pygame.Rect(
-                col_x, content_y, col_width - 10, 35
-            )  # 增加高度
-            category_color = (
-                COLORS["SUCCESS"]
-                if category_name == "基礎工具"
-                else (
-                    COLORS["INFO"] if category_name == "建築設施" else COLORS["WARNING"]
+        for category_name, recipes in recipe_categories.items():
+            # 分類標題
+            if current_y > content_area.y - 40 and current_y < content_area.bottom + 40:
+                category_rect = pygame.Rect(
+                    content_area.x, current_y, content_area.width, 30
                 )
-            )
-            pygame.draw.rect(screen, category_color, category_rect)
-            pygame.draw.rect(screen, COLORS["UI_BORDER"], category_rect, 2)  # 加粗邊框
-
-            # 分類標題加陰影效果
-            self.draw_centered_text(
-                screen,
-                category_name,
-                col_x + (col_width - 10) // 2 + 1,
-                content_y + 19,  # 陰影位置
-                (0, 0, 0),  # 黑色陰影
-                "medium",
-            )
-            self.draw_centered_text(
-                screen,
-                category_name,
-                col_x + (col_width - 10) // 2,
-                content_y + 17,
-                (255, 255, 255),  # 白色文字
-                "medium",
-            )
-
-            # 繪製該類別的配方
-            item_y = content_y + 45  # 調整因為分類標題高度增加
-            for item_id, recipe_data in recipes.items():
-                if recipe_index > 7:  # 只支持1-7鍵
-                    break
-
-                # 檢查材料和製作條件
-                can_craft_materials = all(
-                    player.inventory.has_item(mat, amount)
-                    for mat, amount in recipe_data["materials"].items()
+                category_color = (
+                    COLORS["SUCCESS"]
+                    if category_name == "基礎工具"
+                    else (
+                        COLORS["INFO"]
+                        if category_name == "建築設施"
+                        else COLORS["WARNING"]
+                    )
                 )
+                pygame.draw.rect(screen, category_color, category_rect)
+                pygame.draw.rect(screen, COLORS["UI_BORDER"], category_rect, 2)
 
-                # 基礎工具和工作台可以隨時製作，其他需要工作台
-                is_basic_craft = item_id in ["workbench"] or category_name == "基礎工具"
-                can_craft_location = is_basic_craft or has_workbench
-
-                can_craft = can_craft_materials and can_craft_location
-
-                # 配方背景 - 增強對比度
-                item_rect = pygame.Rect(
-                    col_x, item_y, col_width - 10, 95
-                )  # 稍微增加高度
-                if can_craft:
-                    bg_color = (*COLORS["SUCCESS"], 60)  # 增加透明度
-                    border_color = COLORS["SUCCESS"]
-                elif can_craft_materials and not can_craft_location:
-                    bg_color = (*COLORS["WARNING"], 60)  # 增加透明度
-                    border_color = COLORS["WARNING"]
-                else:
-                    bg_color = (*COLORS["TEXT_SECONDARY"], 40)  # 增加透明度
-                    border_color = COLORS["TEXT_SECONDARY"]
-
-                pygame.draw.rect(screen, bg_color, item_rect)
-                pygame.draw.rect(
-                    screen, border_color, item_rect, 2
-                )  # 加粗並使用對應顏色邊框
-
-                # 數字標籤 - 更明顯的設計
-                pygame.draw.circle(
-                    screen, (255, 255, 255), (col_x + 15, item_y + 15), 12  # 增大圓圈
-                )
-                pygame.draw.circle(
-                    screen, COLORS["INFO"], (col_x + 15, item_y + 15), 12, 2  # 彩色邊框
-                )
                 self.draw_centered_text(
                     screen,
-                    str(recipe_index),
-                    col_x + 15,
-                    item_y + 15,
-                    (0, 0, 0),  # 黑色數字更明顯
-                    "medium",  # 增大字體
+                    category_name,
+                    content_area.x + content_area.width // 2,
+                    current_y + 15,
+                    (255, 255, 255),
+                    "medium",
                 )
 
-                # 物品名稱 - 增強對比度和字體大小
-                name_color = (
-                    (0, 255, 0)  # 亮綠色
-                    if can_craft
-                    else (
-                        (255, 255, 0)  # 亮黃色
-                        if can_craft_materials
-                        else (200, 200, 200)  # 亮灰色
-                    )
-                )
-                # 添加文字陰影
-                self.draw_text(
-                    screen,
-                    recipe_data["name"],
-                    col_x + 31,
-                    item_y + 6,
-                    (0, 0, 0),  # 黑色陰影
-                    "large",  # 增大字體
-                )
-                self.draw_text(
-                    screen,
-                    recipe_data["name"],
-                    col_x + 30,
-                    item_y + 5,
-                    name_color,
-                    "large",  # 增大字體
-                )
+            current_y += 40
 
-                # 物品描述 - 增強可讀性
-                self.draw_text(
-                    screen,
-                    recipe_data["desc"],
-                    col_x + 31,
-                    item_y + 29,
-                    (0, 0, 0),  # 黑色陰影
-                    "medium",  # 增大字體
-                )
-                self.draw_text(
-                    screen,
-                    recipe_data["desc"],
-                    col_x + 30,
-                    item_y + 28,
-                    (220, 220, 220),  # 亮灰色文字
-                    "medium",  # 增大字體
-                )
+            # 繪製配方
+            for item_id, recipe_data in recipes.items():
+                if recipe_index > 8:
+                    break
 
-                # 材料需求 - 更明顯的顯示
-                materials_y = item_y + 52  # 調整位置
-                materials_text = "需要: "
-                for i, (mat, amount) in enumerate(recipe_data["materials"].items()):
-                    if i > 0:
-                        materials_text += ", "
-                    owned = player.inventory.get_item_count(mat)
-                    materials_text += f"{mat}×{amount}"
-                    if owned < amount:
-                        materials_text += f"({owned})"
+                # 只繪製可見區域的物品
+                if current_y + 100 > content_area.y and current_y < content_area.bottom:
+                    # 製作條件檢查
+                    can_craft_materials = all(
+                        player.inventory.has_item(mat, amount)
+                        for mat, amount in recipe_data["materials"].items()
+                    )
 
-                # 材料文字加陰影
-                self.draw_text(
-                    screen,
-                    materials_text,
-                    col_x + 11,
-                    materials_y + 1,
-                    (0, 0, 0),  # 黑色陰影
-                    "medium",  # 增大字體
-                )
-                self.draw_text(
-                    screen,
-                    materials_text,
-                    col_x + 10,
-                    materials_y,
-                    (255, 255, 255),  # 白色文字
-                    "medium",  # 增大字體
-                )
+                    is_basic_craft = (
+                        item_id in ["workbench"] or category_name == "基礎工具"
+                    )
+                    can_craft_location = is_basic_craft or has_workbench
+                    can_craft = can_craft_materials and can_craft_location
 
-                # 製作條件提示 - 更明顯的狀態顯示
-                condition_y = item_y + 74  # 調整位置
-                if not is_basic_craft and not has_workbench:
-                    # 需要工作台 - 紅色警告
-                    self.draw_text(
-                        screen,
-                        "⚠️ 需要靠近工作台",
-                        col_x + 11,
-                        condition_y + 1,
-                        (0, 0, 0),  # 黑色陰影
-                        "medium",
+                    # 物品背景
+                    item_rect = pygame.Rect(
+                        content_area.x, current_y, content_area.width, 100
                     )
-                    self.draw_text(
-                        screen,
-                        "⚠️ 需要靠近工作台",
-                        col_x + 10,
-                        condition_y,
-                        (255, 50, 50),  # 亮紅色
-                        "medium",
+
+                    if can_craft:
+                        bg_color = (*COLORS["SUCCESS"], 60)
+                        border_color = COLORS["SUCCESS"]
+                    elif can_craft_materials and not can_craft_location:
+                        bg_color = (*COLORS["WARNING"], 60)
+                        border_color = COLORS["WARNING"]
+                    else:
+                        bg_color = (*COLORS["TEXT_SECONDARY"], 40)
+                        border_color = COLORS["TEXT_SECONDARY"]
+
+                    pygame.draw.rect(screen, bg_color, item_rect)
+                    pygame.draw.rect(screen, border_color, item_rect, 2)
+
+                    # 數字標籤
+                    circle_x = content_area.x + 30
+                    circle_y = current_y + 20
+                    pygame.draw.circle(
+                        screen, (255, 255, 255), (circle_x, circle_y), 15
                     )
-                elif can_craft:
-                    # 可製作 - 亮綠色提示
-                    self.draw_text(
-                        screen,
-                        f"✅ 按 {recipe_index} 鍵製作",
-                        col_x + 11,
-                        condition_y + 1,
-                        (0, 0, 0),  # 黑色陰影
-                        "medium",
+                    pygame.draw.circle(
+                        screen, COLORS["INFO"], (circle_x, circle_y), 15, 2
                     )
-                    self.draw_text(
+                    self.draw_centered_text(
                         screen,
-                        f"✅ 按 {recipe_index} 鍵製作",
-                        col_x + 10,
-                        condition_y,
-                        (50, 255, 50),  # 亮綠色
-                        "medium",
-                    )
-                elif not can_craft_materials:
-                    # 材料不足 - 紅色提示
-                    self.draw_text(
-                        screen,
-                        "❌ 材料不足",
-                        col_x + 11,
-                        condition_y + 1,
-                        (0, 0, 0),  # 黑色陰影
-                        "medium",
-                    )
-                    self.draw_text(
-                        screen,
-                        "❌ 材料不足",
-                        col_x + 10,
-                        condition_y,
-                        (255, 100, 100),  # 亮紅色
+                        str(recipe_index),
+                        circle_x,
+                        circle_y,
+                        (0, 0, 0),
                         "medium",
                     )
 
-                item_y += 105  # 調整間距以適應新的高度
+                    # 物品名稱 - 改為黑色以提高可讀性
+                    name_color = (0, 0, 0)  # 統一使用黑色，在任何背景下都清晰可見
+                    self.draw_text(
+                        screen,
+                        recipe_data["name"],
+                        content_area.x + 60,
+                        current_y + 10,
+                        name_color,
+                        "large",
+                    )
+
+                    # 物品描述
+                    self.draw_text(
+                        screen,
+                        recipe_data["desc"],
+                        content_area.x + 60,
+                        current_y + 35,
+                        (220, 220, 220),
+                        "medium",
+                    )
+
+                    # 材料需求 - 智能截斷以適應窗口
+                    materials_parts = []
+                    for mat, amount in recipe_data["materials"].items():
+                        owned = player.inventory.get_item_count(mat)
+                        part = f"{mat}×{amount}"
+                        if owned < amount:
+                            part += f"({owned})"
+                        materials_parts.append(part)
+
+                    materials_text = "需要: " + ", ".join(materials_parts)
+
+                    # 確保文字不超出窗口寬度
+                    if len(materials_text) > 45:  # 如果太長就截斷
+                        materials_text = materials_text[:42] + "..."
+
+                    self.draw_text(
+                        screen,
+                        materials_text,
+                        content_area.x + 60,
+                        current_y + 55,
+                        (255, 255, 255),
+                        "medium",
+                    )
+
+                    # 製作狀態
+                    if not is_basic_craft and not has_workbench:
+                        self.draw_text(
+                            screen,
+                            "需要靠近工作台",
+                            content_area.x + 60,
+                            current_y + 75,
+                            (255, 50, 50),
+                            "medium",
+                        )
+                    elif can_craft:
+                        self.draw_text(
+                            screen,
+                            f"按 {recipe_index} 鍵製作",
+                            content_area.x + 60,
+                            current_y + 75,
+                            (50, 255, 50),
+                            "medium",
+                        )
+                    elif not can_craft_materials:
+                        self.draw_text(
+                            screen,
+                            "材料不足",
+                            content_area.x + 60,
+                            current_y + 75,
+                            (255, 100, 100),
+                            "medium",
+                        )
+
+                current_y += 110
                 recipe_index += 1
 
-        # 底部資訊面板 - 增強視覺效果
-        info_panel_y = craft_y + craft_height - 90  # 增加高度
-        info_rect = pygame.Rect(craft_x, info_panel_y, craft_width, 90)
-        pygame.draw.rect(screen, COLORS["UI_PANEL"], info_rect)
-        pygame.draw.rect(screen, COLORS["UI_BORDER"], info_rect, 3)  # 加粗邊框
+        # 移除裁剪
+        screen.set_clip(None)
 
-        # 操作說明 - 更明顯的文字
+        # 滾輪提示
+        if max_scroll > 0:
+            scroll_text = (
+                f"使用滾輪查看更多 ({self.crafting_scroll_offset}/{max_scroll})"
+            )
+            self.draw_centered_text(
+                screen,
+                scroll_text,
+                craft_x + craft_width // 2,
+                craft_y + craft_height - 50,
+                (150, 150, 150),
+                "small",
+            )
+
+        # 底部資訊
+        info_y = craft_y + craft_height - 30
         self.draw_text(
             screen,
-            "🎮 操作說明: 按數字鍵 1-7 製作對應物品 | ESC 退出製作模式",
-            craft_x + 21,
-            info_panel_y + 16,
-            (0, 0, 0),  # 黑色陰影
-            "large",  # 增大字體
-        )
-        self.draw_text(
-            screen,
-            "🎮 操作說明: 按數字鍵 1-7 製作對應物品 | ESC 退出製作模式",
+            "按數字鍵 1-8 製作 | ESC 退出",
             craft_x + 20,
-            info_panel_y + 15,
-            (255, 255, 100),  # 亮黃色文字
-            "large",  # 增大字體
+            info_y,
+            (255, 255, 100),
+            "medium",
         )
 
-        # 狀態提示 - 更明顯的狀態顯示
-        if has_workbench:
-            status_text = "🔧 工作台可用 - 可製作所有物品"
-            status_color = (100, 255, 100)  # 亮綠色
-        else:
-            status_text = "⚠️ 需要靠近工作台才能製作高級物品"
-            status_color = (255, 150, 50)  # 亮橙色
-
+        status_text = "工作台可用" if has_workbench else "需要工作台製作高級物品"
+        status_color = (100, 255, 100) if has_workbench else (255, 150, 50)
         self.draw_text(
-            screen,
-            status_text,
-            craft_x + 21,
-            info_panel_y + 51,
-            (0, 0, 0),  # 黑色陰影
-            "large",  # 增大字體
-        )
-        self.draw_text(
-            screen,
-            status_text,
-            craft_x + 20,
-            info_panel_y + 50,
-            status_color,
-            "large",  # 增大字體
+            screen, status_text, craft_x + 400, info_y, status_color, "medium"
         )
 
     def _player_near_workbench(self, player: "Player", world_manager=None) -> bool:
