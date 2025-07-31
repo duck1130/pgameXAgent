@@ -24,7 +24,7 @@ from .world_objects import (
     Workbench,
     Furnace,
 )
-from ..core.config import WORLD_OBJECTS, WORLD_CONFIG, WINDOW_CONFIG
+from ..core.config import WORLD_CONFIG, WINDOW_CONFIG
 
 # 避免循環引用
 if TYPE_CHECKING:
@@ -92,17 +92,15 @@ class WorldManager:
         return True
 
     def _choose_object_type(self) -> str:
-        """根據生成機率選擇物件類型"""
-        rand = random.random()
-        cumulative = 0
+        """根據生成機率選擇物件類型（初始生成時排除怪物）"""
+        # 安全物件列表（不包含怪物）
+        safe_objects = ["tree", "rock", "food", "river"]
 
-        for obj_type, config in WORLD_OBJECTS.items():
-            cumulative += config["spawn_rate"]
-            if rand <= cumulative:
-                return obj_type
+        # 偶爾生成特殊物件
+        if random.random() < 0.1:  # 10% 機率
+            safe_objects.extend(["chest", "cave"])
 
-        # 備用：如果沒有選中任何類型，返回樹木
-        return "tree"
+        return random.choice(safe_objects)
 
     def _spawn_object(self, obj_type: str, x: float, y: float) -> None:
         """在指定位置生成物件"""
@@ -125,25 +123,95 @@ class WorldManager:
         elif obj_type == "furnace":
             self.objects.append(Furnace(x, y))
 
-    def update(self, delta_time: float) -> None:
+    def update(
+        self,
+        delta_time: float,
+        player_moved: bool = False,
+        player_x: float = 0,
+        player_y: float = 0,
+        time_manager=None,
+    ) -> None:
         """
-        更新世界物件
+        更新世界物件（支持回合制和怪物生死循環）
 
         Args:
             delta_time (float): 幀時間差
+            player_moved (bool): 玩家本回合是否移動
+            player_x, player_y (float): 玩家當前位置
+            time_manager: 時間管理器實例
         """
         self.spawn_timer += delta_time
 
-        # 定期生成新物件
+        # 獲取時間狀態
+        is_night_time = False
+        is_day_time = True
+        if time_manager:
+            is_night_time = time_manager.is_night_time()
+            is_day_time = time_manager.is_day_time()
+
+        # 怪物生成邏輯 - 只在夜晚生成
+        if is_night_time and self.spawn_timer >= self.spawn_interval:
+            self.spawn_timer = 0
+            self._try_spawn_monster()
+
+        # 定期生成其他物件
         if self.spawn_timer >= self.spawn_interval:
             self.spawn_timer = 0
             self._spawn_random_object()
 
+        # 更新怪物 - 使用新的緩慢移動系統
+        for obj in self.objects:
+            if isinstance(obj, Monster) and obj.active:
+                obj.update_slow_movement(delta_time, player_x, player_y, is_day_time)
+
         # 移除已摧毀的物件
         self.objects = [obj for obj in self.objects if obj.active]
 
+    def _try_spawn_monster(self) -> None:
+        """嘗試在夜晚生成怪物"""
+        max_monsters = 3  # 最多同時存在3個怪物
+        current_monsters = len(
+            [obj for obj in self.objects if isinstance(obj, Monster) and obj.active]
+        )
+
+        if current_monsters >= max_monsters:
+            return
+
+        # 在螢幕邊緣隨機生成怪物
+        edge_spawn_distance = 100  # 距離螢幕邊緣的生成距離
+
+        for _ in range(5):  # 最多嘗試5次
+            # 隨機選擇螢幕邊緣
+            side = random.choice(["top", "bottom", "left", "right"])
+
+            if side == "top":
+                x = random.randint(50, WINDOW_CONFIG["width"] - 50)
+                y = random.randint(10, edge_spawn_distance)
+            elif side == "bottom":
+                x = random.randint(50, WINDOW_CONFIG["width"] - 50)
+                y = random.randint(
+                    WINDOW_CONFIG["height"] - edge_spawn_distance,
+                    WINDOW_CONFIG["height"] - 50,
+                )
+            elif side == "left":
+                x = random.randint(10, edge_spawn_distance)
+                y = random.randint(50, WINDOW_CONFIG["height"] - 50)
+            else:  # right
+                x = random.randint(
+                    WINDOW_CONFIG["width"] - edge_spawn_distance,
+                    WINDOW_CONFIG["width"] - 50,
+                )
+                y = random.randint(50, WINDOW_CONFIG["height"] - 50)
+
+            # 檢查位置是否清空
+            if self._check_position_clear(x, y, 40):
+                monster = Monster(x, y)
+                self.objects.append(monster)
+                print(f"🌙 夜晚怪物已生成！當前怪物數量: {current_monsters + 1}")
+                break
+
     def _spawn_random_object(self) -> None:
-        """隨機生成新物件"""
+        """隨機生成新物件（不包含怪物）"""
         max_objects = WORLD_CONFIG["max_objects"]
         safe_zone_radius = WORLD_CONFIG["safe_zone_radius"]
 

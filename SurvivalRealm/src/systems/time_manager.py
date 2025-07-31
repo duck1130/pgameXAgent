@@ -41,16 +41,10 @@ class TimeManager:
         Returns:
             TimeOfDay: 當前時段枚舉
         """
-        # 將遊戲時間轉換為小時 (0-24)
-        hour = (self.game_time / 60) % 24
-
-        if 5 <= hour < 7:
-            return TimeOfDay.DAWN
-        elif 7 <= hour < 17:
+        # 簡化的日夜循環：前5分鐘為白天，後5分鐘為夜晚
+        if self.game_time < 300:  # 前5分鐘 (300秒)
             return TimeOfDay.DAY
-        elif 17 <= hour < 19:
-            return TimeOfDay.DUSK
-        else:
+        else:  # 後5分鐘
             return TimeOfDay.NIGHT
 
     def get_time_string(self) -> str:
@@ -60,10 +54,15 @@ class TimeManager:
         Returns:
             str: 格式化的時間字串
         """
-        total_minutes = int(self.game_time)
-        hours = (total_minutes // 60) % 24
-        minutes = total_minutes % 60
-        return f"第{self.current_day}天 {hours:02d}:{minutes:02d}"
+        # 顯示當前時段和剩餘時間
+        current_phase_time = self.game_time % 300  # 每個階段5分鐘
+        remaining_minutes = int((300 - current_phase_time) / 60)
+        remaining_seconds = int((300 - current_phase_time) % 60)
+
+        time_of_day = self.get_time_of_day()
+        phase_name = "白天" if time_of_day == TimeOfDay.DAY else "夜晚"
+
+        return f"第{self.current_day}天 {phase_name} 剩餘 {remaining_minutes:02d}:{remaining_seconds:02d}"
 
     def get_time_period_chinese(self) -> str:
         """
@@ -73,15 +72,7 @@ class TimeManager:
             str: 中文時段名稱
         """
         time_of_day = self.get_time_of_day()
-
-        period_names = {
-            TimeOfDay.DAWN: "黎明",
-            TimeOfDay.DAY: "白天",
-            TimeOfDay.DUSK: "黃昏",
-            TimeOfDay.NIGHT: "夜晚",
-        }
-
-        return period_names.get(time_of_day, "未知")
+        return "白天" if time_of_day == TimeOfDay.DAY else "夜晚"
 
     def is_night_time(self) -> bool:
         """檢查是否為夜晚"""

@@ -119,12 +119,17 @@ class Player:
         self.velocity_x = 0
         self.velocity_y = 0
         self.is_moving = False
+        self.has_moved_this_turn = False  # 回合制移動標記
+        self.previous_position = (x, y)  # 記錄上一次位置
 
         # 生存狀態管理
         self.survival_stats = SurvivalStats()
 
         # 物品欄系統
         self.inventory = Inventory(20)
+
+        # 🐱 給玩家一些基礎資源開始遊戲 - 不然連工作台都做不了呢！
+        self._add_starter_items()
 
         # 互動設定
         self.interaction_range = PLAYER_CONFIG["interaction_range"]
@@ -143,6 +148,25 @@ class Player:
         # 戰鬥相關
         self.attack_damage = 1  # 基礎攻擊力
         self.defense = 0  # 防禦力
+
+    def _add_starter_items(self) -> None:
+        """
+        給玩家一些基礎的起始資源
+
+        讓玩家能夠開始遊戲體驗，不至於完全空手開始
+        只給基礎材料，不給任何製作完成的物品
+        """
+        # 基礎資源 - 讓玩家能製作工作台和基礎工具
+        wood_item = item_database.get_item("wood")
+        stone_item = item_database.get_item("stone")
+
+        if wood_item:
+            self.inventory.add_item(
+                wood_item, 10
+            )  # 10個木材 - 足夠製作工作台和基礎工具
+
+        if stone_item:
+            self.inventory.add_item(stone_item, 8)  # 8個石頭 - 足夠製作基礎工具
 
     def get_tool_efficiency(self, target_type: str) -> float:
         """
@@ -268,6 +292,7 @@ class Player:
         # 獲取附近物件
         center_x = self.x + self.width // 2
         center_y = self.y + self.height // 2
+
         nearby_objects = world_manager.get_nearby_objects(
             center_x, center_y, self.interaction_range
         )
@@ -413,6 +438,9 @@ class Player:
             window_width (int): 視窗寬度
             window_height (int): 視窗高度
         """
+        # 記錄舊位置用於回合制檢測
+        old_x, old_y = self.x, self.y
+
         # 更新位置
         self.x += self.velocity_x * delta_time
         self.y += self.velocity_y * delta_time
@@ -420,6 +448,13 @@ class Player:
         # 螢幕邊界檢查
         self.x = max(0, min(window_width - self.width, self.x))
         self.y = max(0, min(window_height - self.height, self.y))
+
+        # 檢查是否真的移動了（回合制系統）
+        moved_distance = math.sqrt((self.x - old_x) ** 2 + (self.y - old_y) ** 2)
+        if moved_distance > 1.0:  # 移動超過1像素才算真正移動
+            self.has_moved_this_turn = True
+        else:
+            self.has_moved_this_turn = False
 
         # 更新碰撞箱
         self.rect.x = int(self.x)

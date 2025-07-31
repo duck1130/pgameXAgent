@@ -10,10 +10,11 @@
 import pygame
 import random
 import time
+import math
 from typing import Optional, Dict, List, Tuple, TYPE_CHECKING
 
 from .game_object import GameObject
-from ..core.config import WORLD_OBJECTS, MINING_CHANCES, COLORS
+from ..core.config import WORLD_OBJECTS, MINING_CHANCES, COLORS, WINDOW_CONFIG
 
 # 避免循環引用
 if TYPE_CHECKING:
@@ -442,7 +443,7 @@ class Furnace(GameObject):
 
 
 class Monster(GameObject):
-    """怪物物件 - 敵對生物"""
+    """怪物物件 - 敵對生物（緩慢接近玩家，夜晚生成白天死亡）"""
 
     def __init__(self, x: float, y: float):
         size = WORLD_OBJECTS["monster"]["size"]
@@ -454,22 +455,161 @@ class Monster(GameObject):
         self.last_attack = 0
         self.attack_cooldown = WORLD_OBJECTS["monster"]["attack_cooldown"]
 
+        # 緩慢移動相關
+        self.move_speed = 0.5  # 非常緩慢的移動速度（每秒0.5像素）
+        self.move_timer = 0.0  # 移動計時器
+        self.move_interval = 0.1  # 每0.1秒移動一次
+
+        # 生存相關
+        self.spawn_time = time.time()  # 生成時間
+        self.is_dying = False  # 是否正在死亡
+        self.death_timer = 0.0  # 死亡計時器
+
+        print(f"🌙 夜晚怪物生成於 ({x:.0f}, {y:.0f})")
+
+    def update_slow_movement(
+        self, delta_time: float, player_x: float, player_y: float, is_day_time: bool
+    ) -> None:
+        """
+        緩慢移動更新 - 持續緩慢接近玩家
+
+        Args:
+            delta_time (float): 幀時間
+            player_x, player_y (float): 玩家當前位置
+            is_day_time (bool): 是否為白天
+        """
+        if not self.active:
+            return
+
+        # 如果是白天，怪物開始死亡
+        if is_day_time and not self.is_dying:
+            self.is_dying = True
+            self.death_timer = 0.0
+            print(f"☀️ 白天來臨，怪物開始消散...")
+
+        # 處理死亡過程
+        if self.is_dying:
+            self.death_timer += delta_time
+            # 死亡過程持續30秒
+            if self.death_timer >= 30.0:
+                print(f"💀 怪物在日光下消散了")
+                self.destroy()
+                return
+
+            # 死亡過程中移動速度減緩
+            self.move_speed = max(0.1, 0.5 - (self.death_timer / 60.0))
+
+        # 更新移動計時器
+        self.move_timer += delta_time
+
+        if self.move_timer >= self.move_interval:
+            self.move_timer = 0.0
+
+            # 計算到玩家的距離和方向
+            center_x = self.x + self.width // 2
+            center_y = self.y + self.height // 2
+
+            dx = player_x - center_x
+            dy = player_y - center_y
+            distance_to_player = math.sqrt(dx**2 + dy**2)
+
+            # 如果玩家在追逐範圍內且不太近
+            chase_range = 200  # 追逐範圍
+            min_distance = 25  # 最小距離
+
+            if distance_to_player <= chase_range and distance_to_player > min_distance:
+                # 正規化方向向量
+                if distance_to_player > 0:
+                    move_x = (dx / distance_to_player) * self.move_speed
+                    move_y = (dy / distance_to_player) * self.move_speed
+
+                    # 緩慢朝向玩家移動
+                    self.x += move_x
+                    self.y += move_y
+
+                    # 確保怪物不會移出螢幕
+                    self.x = max(
+                        10, min(self.x, WINDOW_CONFIG["width"] - self.width - 10)
+                    )
+                    self.y = max(
+                        10, min(self.y, WINDOW_CONFIG["height"] - self.height - 10)
+                    )
+
+                    # 更新碰撞箱
+                    self.rect.x = int(self.x)
+                    self.rect.y = int(self.y)
+            elif distance_to_player <= min_distance:
+                # 太近時稍微後退
+                if distance_to_player > 0:
+                    back_x = -(dx / distance_to_player) * (self.move_speed * 0.5)
+                    back_y = -(dy / distance_to_player) * (self.move_speed * 0.5)
+
+                    self.x += back_x
+                    self.y += back_y
+
+                    self.rect.x = int(self.x)
+                    self.rect.y = int(self.y)
+
+    def update_turn_based_movement(
+        self, player_moved: bool, player_x: float, player_y: float
+    ) -> None:
+        """
+        保留回合制移動接口以維持相容性（實際使用緩慢移動）
+
+        Args:
+            player_moved (bool): 玩家本回合是否移動
+            player_x, player_y (float): 玩家當前位置
+        """
+        # 這個方法現在只是為了保持相容性，實際移動由 update_slow_movement 處理
+        pass
+
     def draw(self, screen: pygame.Surface) -> None:
         """繪製怪物"""
         if not self.active:
             return
 
-        color = WORLD_OBJECTS["monster"]["color"]
-        pygame.draw.ellipse(screen, color, self.rect)
+        # 基本顏色
+        base_color = WORLD_OBJECTS["monster"]["color"]
 
-        # 怪物眼睛
-        left_eye = (int(self.x + 8), int(self.y + 10))
-        right_eye = (int(self.x + 25), int(self.y + 10))
-        pygame.draw.circle(screen, (255, 0, 0), left_eye, 3)
-        pygame.draw.circle(screen, (255, 0, 0), right_eye, 3)
+        # 如果正在死亡，添加透明度效果
+        if self.is_dying:
+            death_progress = min(self.death_timer / 30.0, 1.0)  # 30秒死亡過程
+            alpha = int(255 * (1.0 - death_progress))  # 逐漸透明
 
-        # 生命值條
-        if self.health < self.max_health:
+            # 創建半透明表面
+            temp_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+            dying_color = (*base_color, alpha)
+            temp_surface.fill(dying_color)
+
+            # 繪製半透明怪物
+            pygame.draw.ellipse(
+                temp_surface, dying_color, (0, 0, self.width, self.height)
+            )
+            screen.blit(temp_surface, (self.x, self.y))
+
+            # 死亡時眼睛變暗
+            eye_alpha = max(50, alpha)
+            left_eye = (int(self.x + 8), int(self.y + 10))
+            right_eye = (int(self.x + 25), int(self.y + 10))
+
+            # 創建眼睛表面
+            eye_surface = pygame.Surface((6, 6), pygame.SRCALPHA)
+            eye_color = (255, 100, 100, eye_alpha)
+            pygame.draw.circle(eye_surface, eye_color, (3, 3), 3)
+            screen.blit(eye_surface, (left_eye[0] - 3, left_eye[1] - 3))
+            screen.blit(eye_surface, (right_eye[0] - 3, right_eye[1] - 3))
+        else:
+            # 正常繪製
+            pygame.draw.ellipse(screen, base_color, self.rect)
+
+            # 怪物眼睛
+            left_eye = (int(self.x + 8), int(self.y + 10))
+            right_eye = (int(self.x + 25), int(self.y + 10))
+            pygame.draw.circle(screen, (255, 0, 0), left_eye, 3)
+            pygame.draw.circle(screen, (255, 0, 0), right_eye, 3)
+
+        # 生命值條（死亡時不顯示）
+        if self.health < self.max_health and not self.is_dying:
             self._draw_health_bar(screen)
 
     def _draw_health_bar(self, screen: pygame.Surface) -> None:

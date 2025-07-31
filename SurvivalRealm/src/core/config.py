@@ -148,7 +148,7 @@ WORLD_OBJECTS = {
     "chest": {"spawn_rate": 0.08, "color": (218, 165, 32), "size": (35, 25)},
     "food": {"spawn_rate": 0.15, "color": (255, 0, 255), "size": (20, 20)},
     "monster": {
-        "spawn_rate": 0.1,
+        "spawn_rate": 0.15,  # 增加怪物生成機率來測試回合制系統
         "color": (139, 0, 0),
         "size": (35, 35),
         "health": 3,
@@ -171,8 +171,8 @@ WORLD_CONFIG = {
 # ====== 時間系統配置 ======
 
 TIME_CONFIG = {
-    "time_scale": 60.0,  # 時間倍率 (1遊戲分鐘 = 1實際秒)
-    "day_length": 1440,  # 一天長度(遊戲秒)
+    "time_scale": 1.0,  # 時間倍率 (實時)
+    "day_length": 600,  # 一天長度(實際秒) = 10分鐘 (早上5分鐘 + 晚上5分鐘)
 }
 
 # ====== UI 配置 ======
@@ -242,4 +242,22 @@ AUDIO_CONFIG = {
         "attack": "attack.wav",
         "pickup": "pickup.wav",
     },
+}
+
+# ====== 音樂配置 ======
+
+MUSIC_CONFIG = {
+    "music_files": {
+        "main_theme": "assets/music/minecraft_background.wav",  # C418 Minecraft 音樂
+        "menu_theme": "assets/music/minecraft_background.wav",  # 主選單音樂
+        "night_theme": "assets/music/minecraft_night.wav",  # 夜間音樂
+        "background_music": "assets/music/minecraft_background.wav",  # 預設背景音樂
+    },
+    "volume": {
+        "master": 0.7,
+        "music": 0.4,  # 降低預設音量
+        "sfx": 0.8,
+    },
+    "fade_duration": 1000,  # 淡入淡出時間(毫秒)
+    "loop": True,  # 是否循環播放
 }
