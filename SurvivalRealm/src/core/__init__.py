@@ -1,1 +1,1 @@
-# Survival Realm - 核心系統
+"""Survival Realm - 核心系統"""

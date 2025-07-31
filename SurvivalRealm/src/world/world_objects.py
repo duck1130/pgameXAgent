@@ -305,12 +305,13 @@ class Chest(GameObject):
 
 
 class Cave(GameObject):
-    """洞窟物件 - 可探索獲得資源"""
+    """洞窟物件 - 可進入探索的洞穴入口"""
 
     def __init__(self, x: float, y: float):
         size = WORLD_OBJECTS["cave"]["size"]
         super().__init__(x, y, size[0], size[1])
-        self.explored = False
+        self.depth_levels = random.randint(3, 7)  # 隨機深度
+        self.discovered = False
 
     def draw(self, screen: pygame.Surface) -> None:
         """繪製洞窟"""
@@ -324,40 +325,44 @@ class Cave(GameObject):
         entrance = pygame.Rect(self.x + 25, self.y + 20, 30, 20)
         pygame.draw.ellipse(screen, (0, 0, 0), entrance)
 
-        if not self.explored:
+        # 深度指示器
+        if self.discovered:
+            depth_text = f"深度: {self.depth_levels}"
+            # 這裡可以添加文字渲染，暫時用顏色表示
+            depth_color = (255, 255, 0) if self.depth_levels > 5 else (255, 255, 255)
+            pygame.draw.circle(
+                screen, depth_color, (int(self.x + 10), int(self.y + 10)), 3
+            )
+        else:
             # 未探索標記
             pygame.draw.circle(
                 screen, COLORS["WARNING"], (int(self.x + 10), int(self.y + 10)), 5
             )
 
     def interact(self, player: "Player") -> Optional[Dict]:
-        """探索洞窟"""
+        """進入洞穴探險"""
         if not self.active:
             return None
 
-        if not self.explored:
-            self.explored = True
+        # 檢查是否有探險裝備
+        has_torch = player.inventory.has_item("torch", 1)
+        has_lamp = player.inventory.has_item("cave_lamp", 1)
 
-            # 隨機獲得資源
-            loot = []
+        if not has_torch and not has_lamp:
+            return {
+                "message": "太危險了！你需要火把或洞穴燈才能進入黑暗的洞穴",
+                "cave_entry": False,
+            }
 
-            # 基本資源
-            loot.append(("stone", random.randint(3, 8)))
+        self.discovered = True
 
-            # 有機率獲得礦物
-            if random.random() < 0.5:
-                loot.append(("iron_ore", random.randint(1, 3)))
-
-            if random.random() < 0.3:
-                loot.append(("coal", random.randint(1, 2)))
-
-            # 稀有寶物
-            if random.random() < 0.2:
-                loot.append(("treasure", 1))
-
-            return {"message": "探索了洞窟，發現了豐富的資源！", "items": loot}
-
-        return {"message": "這個洞窟已經探索過了"}
+        # 返回洞穴入口信息，實際進入邏輯由遊戲主循環處理
+        return {
+            "message": f"發現了一個{self.depth_levels}層深的洞穴！按 Enter 鍵進入探險",
+            "cave_entry": True,
+            "cave_depth": self.depth_levels,
+            "cave_object": self,
+        }
 
 
 class Workbench(GameObject):
@@ -443,7 +448,7 @@ class Furnace(GameObject):
 
 
 class Monster(GameObject):
-    """怪物物件 - 敵對生物（緩慢接近玩家，夜晚生成白天死亡）"""
+    """怪物物件 - 主動攻擊的敵對生物"""
 
     def __init__(self, x: float, y: float):
         size = WORLD_OBJECTS["monster"]["size"]
@@ -452,115 +457,131 @@ class Monster(GameObject):
         self.health = WORLD_OBJECTS["monster"]["health"]
         self.max_health = self.health
         self.damage = WORLD_OBJECTS["monster"]["damage"]
+        self.attack_range = WORLD_OBJECTS["monster"]["attack_range"]
+        self.chase_range = WORLD_OBJECTS["monster"]["chase_range"]
         self.last_attack = 0
         self.attack_cooldown = WORLD_OBJECTS["monster"]["attack_cooldown"]
 
-        # 緩慢移動相關
-        self.move_speed = 0.5  # 非常緩慢的移動速度（每秒0.5像素）
-        self.move_timer = 0.0  # 移動計時器
-        self.move_interval = 0.1  # 每0.1秒移動一次
+        # 主動攻擊行為
+        self.is_aggressive = WORLD_OBJECTS["monster"]["is_aggressive"]
+        self.move_speed = 1.0  # 像素/幀
+        self.state = "patrolling"  # patrolling, chasing, attacking
+        self.aggro_timer = 0  # 脫戰計時器
 
-        # 生存相關
-        self.spawn_time = time.time()  # 生成時間
-        self.is_dying = False  # 是否正在死亡
-        self.death_timer = 0.0  # 死亡計時器
+        # 生存相關（保持日夜循環邏輯）
+        self.spawn_time = time.time()
+        self.is_dying = False
+        self.death_timer = 0.0
 
-        print(f"🌙 夜晚怪物生成於 ({x:.0f}, {y:.0f})")
+        print(f"🌙 主動攻擊怪物生成於 ({x:.0f}, {y:.0f})")
 
-    def update_slow_movement(
+    def update_aggressive_behavior(
         self, delta_time: float, player_x: float, player_y: float, is_day_time: bool
-    ) -> None:
+    ) -> Optional[Dict]:
         """
-        緩慢移動更新 - 持續緩慢接近玩家
+        更新主動攻擊行為
 
         Args:
-            delta_time (float): 幀時間
-            player_x, player_y (float): 玩家當前位置
-            is_day_time (bool): 是否為白天
+            delta_time: 幀時間
+            player_x, player_y: 玩家位置
+            is_day_time: 是否為白天
+
+        Returns:
+            Optional[Dict]: 攻擊結果
         """
         if not self.active:
-            return
+            return None
 
-        # 如果是白天，怪物開始死亡
+        # 日夜循環邏輯
         if is_day_time and not self.is_dying:
             self.is_dying = True
             self.death_timer = 0.0
             print(f"☀️ 白天來臨，怪物開始消散...")
 
-        # 處理死亡過程
         if self.is_dying:
             self.death_timer += delta_time
-            # 死亡過程持續30秒
             if self.death_timer >= 30.0:
-                print(f"💀 怪物在日光下消散了")
                 self.destroy()
-                return
+                return None
+            self.move_speed = max(0.1, 1.0 - (self.death_timer / 30.0))
 
-            # 死亡過程中移動速度減緩
-            self.move_speed = max(0.1, 0.5 - (self.death_timer / 60.0))
+        # 計算到玩家的距離
+        center_x = self.x + self.width // 2
+        center_y = self.y + self.height // 2
+        dx = player_x - center_x
+        dy = player_y - center_y
+        distance_to_player = math.sqrt(dx**2 + dy**2)
 
-        # 更新移動計時器
-        self.move_timer += delta_time
+        # 更新狀態
+        if distance_to_player <= self.attack_range:
+            self.state = "attacking"
+            self.aggro_timer = 5.0  # 重置脫戰計時器
+        elif distance_to_player <= self.chase_range:
+            self.state = "chasing"
+            self.aggro_timer = 5.0
+        else:
+            self.aggro_timer -= delta_time
+            if self.aggro_timer <= 0:
+                self.state = "patrolling"
 
-        if self.move_timer >= self.move_interval:
-            self.move_timer = 0.0
+        # 執行移動
+        if self.state in ["chasing", "attacking"]:
+            self._move_towards_player(dx, dy, distance_to_player, delta_time)
 
-            # 計算到玩家的距離和方向
-            center_x = self.x + self.width // 2
-            center_y = self.y + self.height // 2
+        # 主動攻擊
+        if self.state == "attacking" and self._can_attack():
+            return self._perform_attack()
 
-            dx = player_x - center_x
-            dy = player_y - center_y
-            distance_to_player = math.sqrt(dx**2 + dy**2)
+        return None
 
-            # 如果玩家在追逐範圍內且不太近
-            chase_range = 200  # 追逐範圍
-            min_distance = 25  # 最小距離
+    def _move_towards_player(
+        self, dx: float, dy: float, distance: float, delta_time: float
+    ) -> None:
+        """向玩家移動"""
+        if distance > 0:
+            # 正規化方向
+            move_x = (dx / distance) * self.move_speed * delta_time * 60
+            move_y = (dy / distance) * self.move_speed * delta_time * 60
 
-            if distance_to_player <= chase_range and distance_to_player > min_distance:
-                # 正規化方向向量
-                if distance_to_player > 0:
-                    move_x = (dx / distance_to_player) * self.move_speed
-                    move_y = (dy / distance_to_player) * self.move_speed
+            # 如果太接近則稍微後退
+            if distance < self.attack_range * 0.5:
+                move_x *= -0.3
+                move_y *= -0.3
 
-                    # 緩慢朝向玩家移動
-                    self.x += move_x
-                    self.y += move_y
+            self.x += move_x
+            self.y += move_y
 
-                    # 確保怪物不會移出螢幕
-                    self.x = max(
-                        10, min(self.x, WINDOW_CONFIG["width"] - self.width - 10)
-                    )
-                    self.y = max(
-                        10, min(self.y, WINDOW_CONFIG["height"] - self.height - 10)
-                    )
+            # 限制在螢幕內
+            self.x = max(10, min(self.x, WINDOW_CONFIG["width"] - self.width - 10))
+            self.y = max(10, min(self.y, WINDOW_CONFIG["height"] - self.height - 10))
 
-                    # 更新碰撞箱
-                    self.rect.x = int(self.x)
-                    self.rect.y = int(self.y)
-            elif distance_to_player <= min_distance:
-                # 太近時稍微後退
-                if distance_to_player > 0:
-                    back_x = -(dx / distance_to_player) * (self.move_speed * 0.5)
-                    back_y = -(dy / distance_to_player) * (self.move_speed * 0.5)
+            self.rect.x = int(self.x)
+            self.rect.y = int(self.y)
 
-                    self.x += back_x
-                    self.y += back_y
+    def _can_attack(self) -> bool:
+        """檢查是否可以攻擊"""
+        current_time = time.time()
+        return current_time - self.last_attack >= self.attack_cooldown
 
-                    self.rect.x = int(self.x)
-                    self.rect.y = int(self.y)
+    def _perform_attack(self) -> Dict:
+        """執行攻擊"""
+        self.last_attack = time.time()
+        return {"monster_attack": True, "damage": self.damage, "attacker": self}
+
+    def update_slow_movement(
+        self, delta_time: float, player_x: float, player_y: float, is_day_time: bool
+    ) -> Optional[Dict]:
+        """
+        保持舊的接口兼容性，但使用新的主動攻擊邏輯
+        """
+        return self.update_aggressive_behavior(
+            delta_time, player_x, player_y, is_day_time
+        )
 
     def update_turn_based_movement(
         self, player_moved: bool, player_x: float, player_y: float
     ) -> None:
-        """
-        保留回合制移動接口以維持相容性（實際使用緩慢移動）
-
-        Args:
-            player_moved (bool): 玩家本回合是否移動
-            player_x, player_y (float): 玩家當前位置
-        """
-        # 這個方法現在只是為了保持相容性，實際移動由 update_slow_movement 處理
+        """保持回合制接口兼容性（實際不使用）"""
         pass
 
     def draw(self, screen: pygame.Surface) -> None:
@@ -568,49 +589,54 @@ class Monster(GameObject):
         if not self.active:
             return
 
-        # 基本顏色
         base_color = WORLD_OBJECTS["monster"]["color"]
 
-        # 如果正在死亡，添加透明度效果
-        if self.is_dying:
-            death_progress = min(self.death_timer / 30.0, 1.0)  # 30秒死亡過程
-            alpha = int(255 * (1.0 - death_progress))  # 逐漸透明
+        # 根據狀態調整顏色
+        if self.state == "attacking":
+            base_color = (255, 0, 0)  # 攻擊時變紅
+        elif self.state == "chasing":
+            base_color = (200, 0, 200)  # 追擊時變紫
 
-            # 創建半透明表面
+        # 死亡透明度效果
+        if self.is_dying:
+            death_progress = min(self.death_timer / 30.0, 1.0)
+            alpha = int(255 * (1.0 - death_progress))
             temp_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
             dying_color = (*base_color, alpha)
             temp_surface.fill(dying_color)
-
-            # 繪製半透明怪物
             pygame.draw.ellipse(
                 temp_surface, dying_color, (0, 0, self.width, self.height)
             )
             screen.blit(temp_surface, (self.x, self.y))
-
-            # 死亡時眼睛變暗
-            eye_alpha = max(50, alpha)
-            left_eye = (int(self.x + 8), int(self.y + 10))
-            right_eye = (int(self.x + 25), int(self.y + 10))
-
-            # 創建眼睛表面
-            eye_surface = pygame.Surface((6, 6), pygame.SRCALPHA)
-            eye_color = (255, 100, 100, eye_alpha)
-            pygame.draw.circle(eye_surface, eye_color, (3, 3), 3)
-            screen.blit(eye_surface, (left_eye[0] - 3, left_eye[1] - 3))
-            screen.blit(eye_surface, (right_eye[0] - 3, right_eye[1] - 3))
         else:
-            # 正常繪製
             pygame.draw.ellipse(screen, base_color, self.rect)
 
-            # 怪物眼睛
+        # 眼睛
+        if not self.is_dying:
+            eye_color = (255, 0, 0) if self.state == "attacking" else (255, 100, 100)
             left_eye = (int(self.x + 8), int(self.y + 10))
             right_eye = (int(self.x + 25), int(self.y + 10))
-            pygame.draw.circle(screen, (255, 0, 0), left_eye, 3)
-            pygame.draw.circle(screen, (255, 0, 0), right_eye, 3)
+            pygame.draw.circle(screen, eye_color, left_eye, 3)
+            pygame.draw.circle(screen, eye_color, right_eye, 3)
 
-        # 生命值條（死亡時不顯示）
+        # 生命值條
         if self.health < self.max_health and not self.is_dying:
             self._draw_health_bar(screen)
+
+        # 狀態指示器
+        if self.state == "chasing":
+            # 追擊狀態指示
+            pygame.draw.circle(
+                screen,
+                (255, 255, 0),
+                (int(self.x + self.width // 2), int(self.y - 5)),
+                2,
+            )
+        elif self.state == "attacking":
+            # 攻擊狀態指示
+            pygame.draw.circle(
+                screen, (255, 0, 0), (int(self.x + self.width // 2), int(self.y - 5)), 3
+            )
 
     def _draw_health_bar(self, screen: pygame.Surface) -> None:
         """繪製生命值條"""
@@ -624,11 +650,9 @@ class Monster(GameObject):
         pygame.draw.rect(screen, COLORS["HEALTH"], health_rect)
 
     def interact(self, player: "Player") -> Optional[Dict]:
-        """戰鬥系統"""
+        """戰鬥系統（玩家主動攻擊）"""
         if not self.active:
             return None
-
-        current_time = time.time()
 
         # 玩家攻擊怪物
         damage_to_monster = player.attack_damage
@@ -637,7 +661,7 @@ class Monster(GameObject):
         if self.health <= 0:
             self.destroy()
 
-            # 隨機掉落物品
+            # 隨機掉落物品（地表怪物掉落）
             drops = []
             if random.random() < 0.6:
                 drops.append(("food", random.randint(1, 3)))
@@ -652,13 +676,20 @@ class Monster(GameObject):
                 "items": drops,
             }
 
-        # 怪物反擊
-        if current_time - self.last_attack >= self.attack_cooldown:
-            self.last_attack = current_time
-            actual_damage = player.take_damage(self.damage)
-            return {
-                "message": f"與怪物戰鬥！你對怪物造成{damage_to_monster}傷害，怪物對你造成{actual_damage}傷害",
-                "monster_attack": True,
-            }
+        # 觸發反擊（將由主動攻擊系統處理）
+        self.state = "attacking"
+        self.aggro_timer = 5.0
 
-        return {"message": f"戰鬥中... 怪物生命值: {self.health}/{self.max_health}"}
+        return {
+            "message": f"與怪物戰鬥！你對怪物造成{damage_to_monster}傷害，怪物生命值: {self.health}/{self.max_health}"
+        }
+
+    def take_damage_from_player(self, damage: int, player: "Player") -> Optional[Dict]:
+        """
+        接受玩家傷害（用於主動攻擊期間的反擊）
+        """
+        actual_damage = player.take_damage(self.damage)
+        return {
+            "message": f"怪物反擊！對你造成{actual_damage}點傷害",
+            "damage": actual_damage,
+        }

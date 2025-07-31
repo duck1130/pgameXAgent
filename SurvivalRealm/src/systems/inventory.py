@@ -253,6 +253,10 @@ class ItemDatabase:
 
         self._add_item(Item("stone", "石頭", ItemType.RESOURCE, 64, "堅固的建築材料"))
 
+        self._add_item(
+            Item("plant_fiber", "植物纖維", ItemType.RESOURCE, 32, "可編織成繩索的纖維")
+        )
+
         # ====== 食物和消耗品 ======
         self._add_item(
             Item("food", "食物", ItemType.CONSUMABLE, 32, "恢復飢餓值的基本食物")
@@ -269,6 +273,30 @@ class ItemDatabase:
                 ItemType.CONSUMABLE,
                 16,
                 "野生蘑菇，恢復飢餓值但可能有副作用",
+            )
+        )
+
+        self._add_item(
+            Item("fruit", "水果", ItemType.CONSUMABLE, 16, "新鮮水果，恢復飢餓值")
+        )
+
+        self._add_item(
+            Item(
+                "health_potion",
+                "生命藥水",
+                ItemType.CONSUMABLE,
+                8,
+                "恢復大量生命值的神奇藥水",
+            )
+        )
+
+        self._add_item(
+            Item(
+                "energy_potion",
+                "體力藥水",
+                ItemType.CONSUMABLE,
+                8,
+                "恢復體力值的神奇藥水",
             )
         )
 
@@ -289,6 +317,37 @@ class ItemDatabase:
                 16,
                 "燒製後的鐵，用於製作高級物品",
             )
+        )
+
+        # 新增礦物
+        self._add_item(
+            Item("copper_ore", "銅礦", ItemType.RESOURCE, 32, "可以燒製成銅錠的礦物")
+        )
+
+        self._add_item(
+            Item(
+                "copper_ingot",
+                "銅錠",
+                ItemType.RESOURCE,
+                16,
+                "燒製後的銅，用於製作物品",
+            )
+        )
+
+        self._add_item(
+            Item("steel_ingot", "鋼錠", ItemType.RESOURCE, 8, "高級合金，比鐵更堅固")
+        )
+
+        self._add_item(
+            Item("silver_ore", "銀礦", ItemType.RESOURCE, 16, "珍貴的銀礦石")
+        )
+
+        self._add_item(
+            Item("gold_ore", "金礦", ItemType.RESOURCE, 8, "極其珍貴的金礦石")
+        )
+
+        self._add_item(
+            Item("diamond", "鑽石", ItemType.VALUABLE, 1, "最珍貴的寶石，極其稀有")
         )
 
         # ====== 貴重物品 ======
@@ -321,6 +380,26 @@ class ItemDatabase:
             Item("bucket", "木桶", ItemType.TOOL, 1, "用於取水的容器，提升取水效率")
         )
 
+        # 新增探險工具
+        self._add_item(
+            Item("torch", "火把", ItemType.TOOL, 16, "照亮黑暗的洞穴，防止受到黑暗傷害")
+        )
+
+        self._add_item(Item("rope", "繩索", ItemType.TOOL, 8, "用於洞穴探險的攀爬工具"))
+
+        self._add_item(
+            Item("cave_lamp", "洞穴燈", ItemType.TOOL, 4, "持久照明的高級洞穴探險工具")
+        )
+
+        # 進階工具
+        self._add_item(
+            Item("steel_pickaxe", "鋼稿", ItemType.TOOL, 1, "高級挖掘工具，效率極高")
+        )
+
+        self._add_item(
+            Item("diamond_pickaxe", "鑽石稿", ItemType.TOOL, 1, "最高級的挖掘工具")
+        )
+
         # ====== 武器裝備 ======
         self._add_item(
             Item(
@@ -334,12 +413,38 @@ class ItemDatabase:
             )
         )
 
+        # 新增高級裝備
+        self._add_item(
+            Item("steel_sword", "鋼劍", ItemType.EQUIPMENT, 1, "高級鋼製劍，戰鬥力更強")
+        )
+
+        self._add_item(
+            Item(
+                "steel_armor", "鋼甲", ItemType.EQUIPMENT, 1, "高級鋼製護甲，防護力更強"
+            )
+        )
+
         # ====== 建築物 ======
         self._add_item(
             Item("workbench", "工作臺", ItemType.BUILDING, 1, "製作工具的工作台")
         )
 
         self._add_item(Item("furnace", "熔爐", ItemType.BUILDING, 1, "燒製礦物的設備"))
+
+        # 新增儲存建築
+        self._add_item(
+            Item("chest", "寶箱", ItemType.BUILDING, 1, "用於儲存物品的容器")
+        )
+
+        self._add_item(
+            Item(
+                "storage_chest",
+                "大型儲存箱",
+                ItemType.BUILDING,
+                1,
+                "更大容量的儲存容器",
+            )
+        )
 
     def _add_item(self, item: Item) -> None:
         """添加物品到資料庫"""

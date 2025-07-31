@@ -275,7 +275,7 @@ class Player:
         if self.is_moving and self.survival_stats.energy > 0:
             self.survival_stats.energy = max(0, self.survival_stats.energy - 0.1)
 
-    def interact_with_world(self, world_manager: "WorldManager") -> Optional[str]:
+    def interact_with_world(self, world_manager: "WorldManager"):
         """
         與世界物件互動
 
@@ -283,7 +283,7 @@ class Player:
             world_manager: 世界管理器
 
         Returns:
-            Optional[str]: 互動結果訊息
+            互動結果訊息或字典（洞穴入口的情況）
         """
         current_time = time.time()
         if current_time - self.last_interaction < self.interaction_cooldown:
@@ -313,8 +313,12 @@ class Player:
         if result:
             self.last_interaction = current_time
 
+            # 檢查是否是洞穴入口互動
+            if isinstance(result, dict) and result.get("cave_entry"):
+                return result  # 返回完整的字典用於洞穴處理
+
             # 處理獲得的物品
-            if "items" in result:
+            if isinstance(result, dict) and "items" in result:
                 for item_id, quantity in result["items"]:
                     item = item_database.get_item(item_id)
                     if item:
@@ -323,7 +327,11 @@ class Player:
                             lost = quantity - added
                             return f"{result['message']} (物品欄已滿，丟失了{lost}個{item.name})"
 
-            return result["message"]
+            # 返回消息
+            if isinstance(result, dict):
+                return result["message"]
+            else:
+                return result
 
         return None
 

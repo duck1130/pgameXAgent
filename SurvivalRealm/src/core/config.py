@@ -8,7 +8,6 @@
 """
 
 from enum import Enum
-from typing import Dict, Tuple
 
 # ====== 視窗配置參數 ======
 
@@ -108,6 +107,9 @@ TOOL_EFFICIENCY = {
     "hand": 1.0,  # 徒手效率
     "axe": 3.0,  # 斧頭砍樹效率
     "pickaxe": 2.5,  # 稿子挖石效率
+    "steel_pickaxe": 4.0,  # 鋼稿效率更高
+    "diamond_pickaxe": 6.0,  # 鑽石稿效率最高
+    "bucket": 1.0,  # 木桶（水相關）
 }
 
 # ====== 製作配方 ======
@@ -116,47 +118,150 @@ ITEM_RECIPES = {
     # 基礎工具
     "axe": {"wood": 3, "stone": 2},
     "pickaxe": {"wood": 2, "stone": 3},
-    "bucket": {"wood": 4, "stone": 1},
-    # 建築物
-    "workbench": {"wood": 4},
-    "furnace": {"stone": 8},
-    # 高級物品 (需要熔爐)
-    "iron_ingot": {"iron_ore": 1},
+    "bucket": {"wood": 2, "iron_ingot": 1},
+    # 武器裝備
     "iron_sword": {"iron_ingot": 2, "wood": 1},
     "iron_armor": {"iron_ingot": 5},
+    "steel_sword": {"steel_ingot": 2, "wood": 1},  # 新增：鋼劍
+    "steel_armor": {"steel_ingot": 6},  # 新增：鋼甲
+    # 建築物件
+    "workbench": {"wood": 4},
+    "furnace": {"stone": 8},
+    "chest": {"wood": 6, "iron_ingot": 1},  # 新增：寶箱製作
+    "storage_chest": {"wood": 8, "iron_ingot": 2},  # 新增：大型儲存箱
+    # 探險工具
+    "torch": {"wood": 1, "coal": 1},  # 新增：火把（洞穴探險用）
+    "rope": {"plant_fiber": 3},  # 新增：繩索
+    "cave_lamp": {"iron_ingot": 1, "coal": 2, "wood": 1},  # 新增：洞穴燈
+    # 進階工具
+    "steel_pickaxe": {"steel_ingot": 3, "wood": 2},  # 新增：鋼稿
+    "diamond_pickaxe": {"diamond": 3, "wood": 2},  # 新增：鑽石稿
+    # 防護道具
+    "health_potion": {"berry": 3, "mushroom": 2},  # 新增：生命藥水
+    "energy_potion": {"fruit": 2, "plant_fiber": 1},  # 新增：體力藥水
 }
 
-# ====== 礦物生成機率 ======
+# ====== 燒製配方 ======
+
+SMELTING_RECIPES = {
+    "iron_ingot": {"material": "iron_ore", "fuel": ["coal", "wood"]},
+    "steel_ingot": {
+        "material": "iron_ingot",
+        "fuel": ["coal"],
+    },  # 新增：鋼錠（需要煤炭）
+    "copper_ingot": {"material": "copper_ore", "fuel": ["coal", "wood"]},  # 新增：銅錠
+}
+
+# ====== 挖礦機率配置 ======
 
 MINING_CHANCES = {
-    "iron_ore": 0.3,  # 30% 機率挖到鐵礦
-    "coal": 0.4,  # 40% 機率挖到煤炭
-    "rare_gem": 0.05,  # 5% 機率挖到稀有寶石
+    "iron_ore": 0.3,  # 30% 機率獲得鐵礦石
+    "coal": 0.4,  # 40% 機率獲得煤炭
+    "copper_ore": 0.2,  # 新增：20% 機率獲得銅礦石
+    "silver_ore": 0.1,  # 新增：10% 機率獲得銀礦石
+    "gold_ore": 0.05,  # 新增：5% 機率獲得金礦石
+    "diamond": 0.02,  # 新增：2% 機率獲得鑽石
+}
+
+# ====== 洞穴探險配置 ======
+
+CAVE_CONFIG = {
+    "min_depth": 3,  # 最小深度層數
+    "max_depth": 7,  # 最大深度層數
+    "room_size": {"width": 800, "height": 600},  # 洞穴房間大小
+    "monster_spawn_rate": 0.3,  # 洞穴內怪物生成率
+    "treasure_spawn_rate": 0.15,  # 寶藏生成率
+    "mineral_spawn_rate": 0.4,  # 礦物生成率
+    "torch_duration": 300,  # 火把持續時間（秒）
+    "darkness_damage": 1,  # 黑暗中每秒受到的傷害
 }
 
 # ====== 世界物件配置 ======
 
 WORLD_OBJECTS = {
-    "tree": {"spawn_rate": 0.3, "color": (34, 139, 34), "size": (40, 60), "health": 3},
+    "tree": {
+        "spawn_rate": 0.3,
+        "color": (34, 139, 34),
+        "size": (40, 60),
+        "health": 5,
+    },
     "rock": {
+        "spawn_rate": 0.25,
+        "color": (128, 128, 128),
+        "size": (30, 25),
+        "health": 8,
+    },
+    "food": {
         "spawn_rate": 0.2,
-        "color": (105, 105, 105),
-        "size": (30, 30),
-        "health": 2,
+        "color": (255, 140, 0),
+        "size": (20, 20),
     },
-    "cave": {"spawn_rate": 0.05, "color": (64, 64, 64), "size": (80, 60)},
-    "chest": {"spawn_rate": 0.08, "color": (218, 165, 32), "size": (35, 25)},
-    "food": {"spawn_rate": 0.15, "color": (255, 0, 255), "size": (20, 20)},
+    "river": {
+        "spawn_rate": 0.05,  # 降低河流生成率，使其更稀少
+        "color": (0, 100, 200),
+        "size": (100, 60),
+        "is_permanent": True,  # 新增：標記為永久物件，不會重複生成
+    },
+    "chest": {
+        "spawn_rate": 0.03,
+        "color": (139, 69, 19),
+        "size": (30, 25),
+    },
+    "cave": {
+        "spawn_rate": 0.08,  # 增加洞穴生成率
+        "color": (64, 64, 64),
+        "size": (80, 60),
+        "can_enter": True,  # 新增：可進入標記
+    },
     "monster": {
-        "spawn_rate": 0.15,  # 增加怪物生成機率來測試回合制系統
-        "color": (139, 0, 0),
-        "size": (35, 35),
-        "health": 3,
-        "damage": 10,
+        "spawn_rate": 0.15,
+        "color": (139, 0, 139),
+        "size": (35, 30),
+        "health": 15,
+        "damage": 8,
         "attack_cooldown": 2.0,
+        "attack_range": 40,  # 新增：攻擊範圍
+        "chase_range": 120,  # 新增：追擊範圍
+        "is_aggressive": True,  # 新增：主動攻擊標記
     },
-    "river": {"spawn_rate": 0.05, "color": (0, 119, 190), "size": (120, 60)},
-    "iron_ore": {"spawn_rate": 0.05, "color": (139, 69, 19), "size": (25, 25)},
+    "workbench": {
+        "spawn_rate": 0.0,  # 不自動生成，需要玩家建造
+        "color": (139, 69, 19),
+        "size": (60, 40),
+    },
+    "furnace": {
+        "spawn_rate": 0.0,  # 不自動生成，需要玩家建造
+        "color": (105, 105, 105),
+        "size": (50, 60),
+    },
+    # 新增洞穴內物件
+    "cave_monster": {
+        "spawn_rate": 0.0,  # 不在地表生成
+        "color": (139, 0, 0),  # 更深的紅色
+        "size": (40, 35),
+        "health": 25,
+        "damage": 12,
+        "attack_cooldown": 1.5,
+        "attack_range": 50,
+        "chase_range": 150,
+        "is_aggressive": True,
+    },
+    "cave_spider": {
+        "spawn_rate": 0.0,
+        "color": (64, 0, 64),  # 深紫色
+        "size": (25, 20),
+        "health": 8,
+        "damage": 5,
+        "attack_cooldown": 1.0,
+        "attack_range": 30,
+        "chase_range": 80,
+        "is_aggressive": True,
+    },
+    "treasure_chest": {
+        "spawn_rate": 0.0,  # 洞穴內特殊寶箱
+        "color": (255, 215, 0),  # 金色
+        "size": (35, 30),
+    },
 }
 
 # ====== 世界生成參數 ======
@@ -166,6 +271,8 @@ WORLD_CONFIG = {
     "max_objects": 60,  # 最大物件數量
     "spawn_interval": 5.0,  # 生成間隔(秒)
     "safe_zone_radius": 60,  # 玩家周圍安全區域
+    "river_spawn_limit": 5,  # 新增：世界中河流的最大數量
+    "permanent_objects_generated": False,  # 新增：是否已生成永久物件
 }
 
 # ====== 時間系統配置 ======

@@ -1,1 +1,1 @@
-# Survival Realm - 世界系統
+"""Survival Realm - 世界系統"""

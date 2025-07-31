@@ -1,1 +1,1 @@
-# Survival Realm - 遊戲系統
+"""Survival Realm - 遊戲系統"""

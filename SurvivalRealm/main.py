@@ -7,7 +7,7 @@
 版本: 3.1.0 (重構版本)
 
 好了好了，遊戲程式量太大被拆分重構了！
-雖然本大爺很不願意承認，但這樣確實更好維護!
+雖然本大爺很不想承認，但這次重構確實讓程式碼更乾淨了... (ˋ・ω・ˊ)
 """
 
 import pygame
@@ -46,12 +46,18 @@ class Game:
         from src.world.world_manager import WorldManager
         from src.systems.time_manager import TimeManager
         from src.systems.music_manager import MusicManager
+        from src.world.cave_system import cave_system
 
         self.world_manager = WorldManager()
         print("🌍 世界管理器初始化完成")
 
         self.music_manager = MusicManager()
         print("🎵 音樂管理器初始化完成！")
+
+        # 洞穴系統
+        self.cave_system = cave_system
+        self.pending_cave_entry = None  # 待進入的洞穴信息
+        print("🕳️ 洞穴探險系統初始化完成！")
 
         # 初始化 UI 系統
         from src.ui.user_interface import UI
@@ -69,14 +75,19 @@ class Game:
         # 🐱 硬漢貓咪調試：給玩家一些測試材料
         from src.systems.inventory import item_database
 
+        # 給玩家初始資源（調試用）
         wood_item = item_database.get_item("wood")
         stone_item = item_database.get_item("stone")
+        coal_item = item_database.get_item("coal")  # 新增煤炭
         if wood_item:
             self.player.inventory.add_item(wood_item, 10)  # 給10個木材
             print(f"🎁 調試：給玩家添加了 10 個木材")
         if stone_item:
             self.player.inventory.add_item(stone_item, 10)  # 給10個石頭
             print(f"🎁 調試：給玩家添加了 10 個石頭")
+        if coal_item:
+            self.player.inventory.add_item(coal_item, 5)  # 給5個煤炭用於製作火把
+            print(f"🎁 調試：給玩家添加了 5 個煤炭")
 
         # 初始化時間管理器
         self.time_manager = TimeManager()
@@ -115,18 +126,26 @@ class Game:
         print("📖 遊戲操作說明:")
         print("   WASD - 移動角色")
         print("   E - 與物件互動")
+        print("   Enter - 進入/退出洞穴")
+        print("   L - 使用照明工具（洞穴內）")
         print("   F - 消耗食物")
         print("   I - 開啟/關閉物品欄")
-        print("   C - 製作介面 (1=斧頭 2=稿子 3=水桶 4=工作台 5=熔爐 6=鐵劍 7=鐵甲)")
+        print(
+            "   C - 製作介面 (1=斧頭 2=稿子 3=水桶 4=火把 5=工作台 6=熔爐 7=鐵劍 8=鐵甲)"
+        )
         print("   T - 燒製介面 (需靠近熔爐，1=燒製鐵錠)")
         print("   P - 放置建築物 (工作台/熔爐)")
         print("   M - 切換背景音樂")
         print("   + - 增加音量")
         print("   - - 減少音量")
-        print("   1-7 - 裝備物品 (1=斧頭 2=稿子 3=水桶 4-5=建築物 6=鐵劍 7=鐵甲)")
+        print(
+            "   1-8 - 裝備物品 (1=斧頭 2=稿子 3=水桶 4=火把 5-6=建築物 7=鐵劍 8=鐵甲)"
+        )
         print("   ESC - 暫停/繼續遊戲")
         print("   Q - 退出遊戲")
-        print("💡 提示: 製作和裝備使用統一的 1-7 按鍵映射！")
+        print("💡 提示: 製作和裝備使用統一的 1-8 按鍵映射！")
+        print("🕳️ 洞穴探險: 找到洞穴後需要火把才能進入，小心黑暗和怪物！")
+        print("🌊 稀有河流: 河流不會重新生成，珍惜每一個水源！")
 
     def handle_events(self) -> None:
         """處理遊戲事件"""
@@ -184,9 +203,44 @@ class Game:
         if key == pygame.K_e:
             # 與世界互動 (僅在遊戲狀態下)
             if self.state == GameState.PLAYING:
-                message = self.player.interact_with_world(self.world_manager)
-                if message:
-                    self.add_message(message)
+                if self.cave_system.in_cave:
+                    # 在洞穴中，與洞穴物件互動
+                    cave_objects = self.cave_system.get_cave_objects()
+                    player_center_x = self.player.x + self.player.width // 2
+                    player_center_y = self.player.y + self.player.height // 2
+
+                    for obj in cave_objects:
+                        if obj.is_near(
+                            player_center_x,
+                            player_center_y,
+                            self.player.interaction_range,
+                        ):
+                            result = obj.interact(self.player)
+                            if result:
+                                self.add_message(result["message"])
+                                if "items" in result:
+                                    for item_id, amount in result["items"]:
+                                        item = item_database.get_item(item_id)
+                                        if item:
+                                            self.player.inventory.add_item(item, amount)
+                            break
+                else:
+                    # 在地表，正常互動
+                    result = self.player.interact_with_world(self.world_manager)
+                    if result:
+                        # 檢查是否是洞穴入口
+                        if isinstance(result, dict) and result.get("cave_entry"):
+                            self._handle_cave_entry_result(result)
+                        else:
+                            self.add_message(result)
+
+        elif key == pygame.K_RETURN:  # Enter鍵
+            # 進入洞穴
+            if self.state == GameState.PLAYING and self.pending_cave_entry:
+                self.enter_cave()
+            # 退出洞穴
+            elif self.cave_system.in_cave:
+                self.exit_cave()
 
         elif key == pygame.K_f:
             # 消耗食物 (僅在遊戲狀態下)
@@ -195,6 +249,15 @@ class Game:
                     self.add_message("消耗食物，恢復飢餓值！")
                 else:
                     self.add_message("沒有食物可以消耗")
+
+        elif key == pygame.K_l:  # L鍵 - 使用照明工具
+            if self.cave_system.in_cave:
+                if self.cave_system.use_torch(self.player):
+                    self.add_message("點燃了火把，照亮了周圍！")
+                elif self.cave_system.use_cave_lamp(self.player):
+                    self.add_message("開啟了洞穴燈，光明持續更久！")
+                else:
+                    self.add_message("沒有照明工具！黑暗正在侵蝕你...")
 
         elif key == pygame.K_i:
             # 切換物品欄 (僅在遊戲狀態下)
@@ -285,7 +348,7 @@ class Game:
             self.add_message(f"🔉 音量: {int(new_volume * 100)}%")
 
         # 數字鍵操作 (在所有允許的遊戲狀態下都可以)
-        elif pygame.K_1 <= key <= pygame.K_7:
+        elif pygame.K_1 <= key <= pygame.K_8:
             number = key - pygame.K_1 + 1
             self._handle_number_key(number)
 
@@ -325,6 +388,7 @@ class Game:
             "axe",
             "pickaxe",
             "bucket",
+            "torch",
             "workbench",
             "furnace",
             "iron_sword",
@@ -346,9 +410,9 @@ class Game:
                 )
                 print(f"📦 調試：物品欄已滿: {self.player.inventory.is_full()}")
 
-            # 工作台可以隨時製作（基礎製作）
-            if item_id == "workbench":
-                print(f"🏗️ 調試：製作工作台，呼叫 _craft_item")
+            # 工作台和火把可以隨時製作（基礎製作）
+            if item_id in ["workbench", "torch"]:
+                print(f"🏗️ 調試：製作基礎物品 {item_id}，呼叫 _craft_item")
                 message = self._craft_item(item_id)
                 print(f"📝 調試：製作結果訊息: {message}")
                 if message:
@@ -369,7 +433,7 @@ class Game:
         else:
             print(f"❌ 調試：數字 {number} 超出範圍 (1-{len(recipes)})")
             self.add_message(
-                "請按 1-7：1=斧頭 2=稿子 3=水桶 4=工作台 5=熔爐 6=鐵劍 7=鐵甲"
+                "請按 1-8：1=斧頭 2=稿子 3=水桶 4=火把 5=工作台 6=熔爐 7=鐵劍 8=鐵甲"
             )
 
     def _handle_smelting(self, number: int) -> None:
@@ -391,6 +455,7 @@ class Game:
             "axe",
             "pickaxe",
             "bucket",
+            "torch",
             "workbench",
             "furnace",
             "iron_sword",
@@ -583,16 +648,29 @@ class Game:
         # 更新各系統
         self.player.update(delta_time, WINDOW_CONFIG["width"], WINDOW_CONFIG["height"])
 
-        # 更新世界管理器時傳遞玩家移動資訊（回合制系統）和時間管理器
+        # 更新世界管理器（獲取消息）
         player_center_x = self.player.x + self.player.width // 2
         player_center_y = self.player.y + self.player.height // 2
-        self.world_manager.update(
+        world_messages = self.world_manager.update(
             delta_time,
             self.player.has_moved_this_turn,
             player_center_x,
             player_center_y,
-            self.time_manager,  # 傳遞時間管理器
+            self.time_manager,
         )
+
+        # 添加世界消息
+        for message in world_messages:
+            self.add_message(message)
+
+        # 處理怪物主動攻擊
+        self._handle_monster_attacks()
+
+        # 更新洞穴系統（如果在洞穴中）
+        if self.cave_system.in_cave:
+            cave_messages = self.cave_system.update(delta_time, self.player)
+            for message in cave_messages:
+                self.add_message(message)
 
         self.time_manager.update(delta_time)
 
@@ -607,6 +685,64 @@ class Game:
         # 檢查遊戲結束條件
         if not self.player.is_alive():
             self.state = GameState.GAME_OVER
+
+    def _handle_monster_attacks(self) -> None:
+        """處理怪物主動攻擊"""
+        from src.world.world_objects import Monster
+
+        for obj in self.world_manager.objects:
+            if isinstance(obj, Monster) and obj.active:
+                if obj.state == "attacking" and obj._can_attack():
+                    # 檢查距離
+                    player_center_x = self.player.x + self.player.width // 2
+                    player_center_y = self.player.y + self.player.height // 2
+                    monster_center_x = obj.x + obj.width // 2
+                    monster_center_y = obj.y + obj.height // 2
+
+                    distance = (
+                        (player_center_x - monster_center_x) ** 2
+                        + (player_center_y - monster_center_y) ** 2
+                    ) ** 0.5
+
+                    if distance <= obj.attack_range:
+                        attack_result = obj._perform_attack()
+                        if attack_result and attack_result.get("monster_attack"):
+                            damage = attack_result.get("damage", 0)
+                            actual_damage = self.player.take_damage(damage)
+                            self.add_message(
+                                f"怪物攻擊了你！受到 {actual_damage} 點傷害"
+                            )
+
+    def _handle_cave_entry_result(self, result: dict) -> None:
+        """處理洞穴互動結果"""
+        if result.get("cave_entry"):
+            self.pending_cave_entry = result
+            self.add_message(result["message"])
+        else:
+            self.add_message(result["message"])
+
+    def enter_cave(self) -> None:
+        """進入洞穴"""
+        if self.pending_cave_entry:
+            depth = self.pending_cave_entry.get("cave_depth", 1)
+
+            # 使用火把或洞穴燈
+            if self.cave_system.use_torch(self.player):
+                self.add_message("點燃火把，準備探險！")
+            elif self.cave_system.use_cave_lamp(self.player):
+                self.add_message("開啟洞穴燈，準備深入探險！")
+
+            # 進入洞穴
+            self.cave_system.enter_cave(depth)
+            self.add_message(f"進入了 {depth} 層深的洞穴！小心黑暗中的危險...")
+
+            self.pending_cave_entry = None
+
+    def exit_cave(self) -> None:
+        """退出洞穴"""
+        if self.cave_system.in_cave:
+            self.cave_system.exit_cave()
+            self.add_message("回到了地表，陽光真好！")
 
     def _cleanup_messages(self) -> None:
         """清理過期的訊息"""
@@ -654,8 +790,12 @@ class Game:
 
     def _draw_gameplay(self) -> None:
         """繪製遊戲進行畫面"""
-        # 繪製世界物件
-        self.world_manager.draw(self.screen)
+        if self.cave_system.in_cave:
+            # 繪製洞穴場景
+            self._draw_cave_scene()
+        else:
+            # 繪製地表場景
+            self.world_manager.draw(self.screen)
 
         # 繪製玩家
         self.player.draw(self.screen)
@@ -672,6 +812,81 @@ class Game:
             )
         elif self.state == GameState.SMELTING:
             self.ui.draw_smelting_interface(self.screen, self.player)
+
+        # 繪製洞穴相關UI
+        if self.cave_system.in_cave:
+            self._draw_cave_ui()
+
+    def _draw_cave_scene(self) -> None:
+        """繪製洞穴場景"""
+        # 洞穴背景
+        cave_color = (40, 40, 40)  # 深灰色洞穴背景
+        self.screen.fill(cave_color)
+
+        # 繪製洞穴牆壁邊界
+        wall_color = (20, 20, 20)
+        wall_thickness = 20
+
+        # 上牆
+        pygame.draw.rect(
+            self.screen, wall_color, (0, 0, WINDOW_CONFIG["width"], wall_thickness)
+        )
+        # 下牆
+        pygame.draw.rect(
+            self.screen,
+            wall_color,
+            (
+                0,
+                WINDOW_CONFIG["height"] - wall_thickness,
+                WINDOW_CONFIG["width"],
+                wall_thickness,
+            ),
+        )
+        # 左牆
+        pygame.draw.rect(
+            self.screen, wall_color, (0, 0, wall_thickness, WINDOW_CONFIG["height"])
+        )
+        # 右牆
+        pygame.draw.rect(
+            self.screen,
+            wall_color,
+            (
+                WINDOW_CONFIG["width"] - wall_thickness,
+                0,
+                wall_thickness,
+                WINDOW_CONFIG["height"],
+            ),
+        )
+
+        # 繪製洞穴物件和黑暗效果
+        self.cave_system.draw(self.screen)
+
+        # 繪製出口提示
+        exit_text = "按 Enter 鍵退出洞穴"
+        font = pygame.font.Font(None, 24)
+        text_surface = font.render(exit_text, True, (255, 255, 0))
+        self.screen.blit(text_surface, (10, WINDOW_CONFIG["height"] - 40))
+
+    def _draw_cave_ui(self) -> None:
+        """繪製洞穴相關UI"""
+        # 火把時間指示器
+        if self.cave_system.player_torch_time > 0:
+            torch_time = int(self.cave_system.player_torch_time)
+            torch_text = f"火把剩餘: {torch_time}秒"
+            color = (255, 255, 0) if torch_time > 30 else (255, 100, 100)
+        else:
+            torch_text = "黑暗中！按 L 鍵使用照明"
+            color = (255, 0, 0)
+
+        font = pygame.font.Font(None, 20)
+        text_surface = font.render(torch_text, True, color)
+        self.screen.blit(text_surface, (10, 80))
+
+        # 洞穴深度指示
+        if self.cave_system.current_room:
+            depth_text = f"洞穴深度: 第 {self.cave_system.current_room.depth} 層"
+            depth_surface = font.render(depth_text, True, (200, 200, 200))
+            self.screen.blit(depth_surface, (10, 100))
 
     def _draw_inventory(self) -> None:
         """繪製物品欄畫面"""

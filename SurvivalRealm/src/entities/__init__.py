@@ -1,1 +1,1 @@
-# Survival Realm - 遊戲實體
+"""Survival Realm - 遊戲實體"""

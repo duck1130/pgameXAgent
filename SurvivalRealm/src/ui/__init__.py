@@ -1,1 +1,1 @@
-# Survival Realm - 用戶介面
+"""Survival Realm - 用戶介面"""

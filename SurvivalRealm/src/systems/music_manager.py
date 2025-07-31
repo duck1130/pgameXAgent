@@ -9,7 +9,7 @@
 
 import pygame
 import os
-from typing import Optional, Dict
+from typing import Optional
 from src.core.config import MUSIC_CONFIG, GameState, TimeOfDay
 
 

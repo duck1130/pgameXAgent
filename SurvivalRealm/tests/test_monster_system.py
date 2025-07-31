@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
-怪物系統測試腳本 - 驗證夜晚生成和白天死亡機制
+👹 怪物系統專項測試
+測試夜晚生成和白天死亡機制
+
+作者: 硬漢貓咪開發團隊 🐱
+日期: 2025-07-31
 """
 import sys
 import os
-import time
 
 # 添加 src 目錄到路徑
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+from test_utils import print_test_header, print_test_result
 from src.systems.time_manager import TimeManager
 from src.world.world_manager import WorldManager
 from src.world.world_objects import Monster
@@ -16,7 +20,7 @@ from src.world.world_objects import Monster
 
 def test_time_system():
     """測試時間系統"""
-    print("⏰ 測試新的時間系統...")
+    print_test_header("測試時間系統")
 
     time_manager = TimeManager()
 
@@ -43,10 +47,13 @@ def test_time_system():
     print(f"   當前時段: {time_manager.get_time_period_chinese()}")
     print(f"   當前天數: {time_manager.current_day}")
 
+    print_test_result(True, "時間系統測試完成")
+    return True
+
 
 def test_monster_system():
     """測試怪物系統"""
-    print("\n👹 測試怪物系統...")
+    print_test_header("測試怪物系統")
 
     # 創建測試怪物
     monster = Monster(100, 100)
@@ -69,10 +76,13 @@ def test_monster_system():
             print("   怪物已完全消散！")
             break
 
+    print_test_result(True, "怪物系統測試完成")
+    return True
+
 
 def test_world_manager_integration():
     """測試世界管理器整合"""
-    print("\n🌍 測試世界管理器整合...")
+    print_test_header("測試世界管理器整合")
 
     world_manager = WorldManager()
     time_manager = TimeManager()
@@ -96,12 +106,35 @@ def test_world_manager_integration():
         )
         print(f"   更新 {i+1}: 怪物數量 {monster_count}")
 
+    print_test_result(True, "世界管理器整合測試完成")
+    return True
 
-if __name__ == "__main__":
+
+def main():
+    """主函數"""
     print("🧪 開始怪物系統全面測試...\n")
 
-    test_time_system()
-    test_monster_system()
-    test_world_manager_integration()
+    tests = [
+        test_time_system,
+        test_monster_system,
+        test_world_manager_integration,
+    ]
 
-    print("\n✅ 所有測試完成！")
+    passed = 0
+    for test in tests:
+        try:
+            if test():
+                passed += 1
+        except Exception as e:
+            print_test_result(False, f"測試異常: {e}")
+
+    print(f"\n📊 測試結果: {passed}/{len(tests)} 通過")
+
+    if passed == len(tests):
+        print_test_result(True, "所有怪物系統測試通過！")
+    else:
+        print_test_result(False, "部分測試失敗")
+
+
+if __name__ == "__main__":
+    main()

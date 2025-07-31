@@ -1,1 +1,1 @@
-# Survival Realm - 核心模組
+"""Survival Realm - 核心模組"""
