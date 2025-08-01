@@ -413,6 +413,26 @@ class UI:
                 "small",
             )
 
+        # 🔥 衝刺狀態顯示
+        if player.is_sprinting:
+            self.draw_text(
+                screen,
+                "衝刺中！",
+                start_x,
+                start_y + 6 * bar_spacing,
+                (255, 255, 0),  # 黃色
+                "medium",
+            )
+        elif player.survival_stats.energy < 20:  # 疲憊警告
+            self.draw_text(
+                screen,
+                "太累了，無法衝刺",
+                start_x,
+                start_y + 6 * bar_spacing,
+                COLORS["DANGER"],
+                "small",
+            )
+
     def draw_time_info(
         self, screen: pygame.Surface, time_manager: "TimeManager"
     ) -> None:

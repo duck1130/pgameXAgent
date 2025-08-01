@@ -283,6 +283,30 @@ class EliteMonster(GameObject):
 
         return 0
 
+    def can_attack(self) -> bool:
+        """檢查精英怪物是否可以攻擊"""
+        current_time = time.time()
+        return (
+            self.state == "attacking"
+            and current_time - self.last_attack >= self.attack_cooldown
+        )
+
+    def attack_player(self, player: "Player") -> Optional[Dict]:
+        """精英怪物攻擊玩家"""
+        if not self.can_attack():
+            return None
+
+        current_time = time.time()
+        self.last_attack = current_time
+
+        print(f"💥 精英{self.monster_type}攻擊玩家！造成{self.damage}點傷害")
+
+        return {
+            "damage": self.damage,
+            "monster_type": self.monster_type,
+            "is_elite": True,
+        }
+
     def interact(self, player) -> bool:
         """精英怪物互動 - 通常是攻擊"""
         return False  # 精英怪物不需要特殊互動
@@ -321,6 +345,84 @@ class EliteMonster(GameObject):
             pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, bar_height))
             pygame.draw.rect(
                 screen, (0, 255, 0), (bar_x, bar_y, health_width, bar_height)
+            )
+
+    def draw_with_camera_alpha(
+        self,
+        screen: pygame.Surface,
+        screen_x: int,
+        screen_y: int,
+        darkness_alpha: int = 255,
+    ) -> None:
+        """使用相機座標和透明度繪製精英怪物"""
+        if not self.active:
+            return
+
+        # 根據黑暗程度調整顏色
+        adjusted_color = tuple(int(c * (darkness_alpha / 255.0)) for c in self.color)
+
+        # 創建螢幕矩形
+        screen_rect = pygame.Rect(screen_x, screen_y, self.width, self.height)
+
+        # 繪製精英怪物主體
+        pygame.draw.rect(screen, adjusted_color, screen_rect)
+
+        # 繪製白色邊框（也受黑暗影響）
+        border_alpha = int(255 * (darkness_alpha / 255.0))
+        border_color = (border_alpha, border_alpha, border_alpha)
+        pygame.draw.rect(screen, border_color, screen_rect, 2)
+
+        # 繪製精英標記（金色邊框，稍微抗黑暗）
+        elite_alpha = min(255, int(darkness_alpha * 1.2))  # 精英標記更顯眼
+        gold_color = (
+            int(255 * (elite_alpha / 255.0)),
+            int(215 * (elite_alpha / 255.0)),
+            0,
+        )
+        elite_rect = pygame.Rect(
+            screen_x - 2, screen_y - 2, self.width + 4, self.height + 4
+        )
+        pygame.draw.rect(screen, gold_color, elite_rect, 2)
+
+        # 繪製血量條（不受黑暗影響，保持可見）
+        if self.health < self.max_health:
+            bar_width = 40
+            bar_height = 6
+            bar_x = screen_x + (self.width - bar_width) // 2
+            bar_y = screen_y - 12
+
+            health_ratio = self.health / self.max_health
+            health_width = int(bar_width * health_ratio)
+
+            # 血量條背景（紅色）
+            pygame.draw.rect(screen, (255, 0, 0), (bar_x, bar_y, bar_width, bar_height))
+            # 當前血量（綠色）
+            pygame.draw.rect(
+                screen, (0, 255, 0), (bar_x, bar_y, health_width, bar_height)
+            )
+
+        # 狀態指示效果
+        if self.state == "attacking":
+            # 攻擊狀態：紅色光環
+            attack_alpha = int(100 * (darkness_alpha / 255.0))
+            attack_color = (255, attack_alpha, attack_alpha)
+            pygame.draw.circle(
+                screen,
+                attack_color,
+                (screen_x + self.width // 2, screen_y + self.height // 2),
+                max(self.width, self.height) // 2 + 5,
+                2,
+            )
+        elif self.state == "chasing":
+            # 追擊狀態：黃色光環
+            chase_alpha = int(80 * (darkness_alpha / 255.0))
+            chase_color = (255, 255, chase_alpha)
+            pygame.draw.circle(
+                screen,
+                chase_color,
+                (screen_x + self.width // 2, screen_y + self.height // 2),
+                max(self.width, self.height) // 2 + 3,
+                1,
             )
 
 

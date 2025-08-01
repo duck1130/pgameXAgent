@@ -199,17 +199,16 @@ class WorldManager:
             is_night_time = time_manager.is_night_time()
             is_day_time = time_manager.is_day_time()
 
-        # 怪物生成邏輯 - 只在夜晚生成
-        if is_night_time and self.spawn_timer >= self.spawn_interval:
+        # 🔥 無限世界生成 - 更頻繁地檢查和生成物件
+        if self.spawn_timer >= self.spawn_interval:
             self.spawn_timer = 0
-            if self._try_spawn_monster(player_x, player_y):
-                messages.append("夜晚: 黑暗中出現了危險的怪物...")
 
-        # 定期生成其他物件（排除河流等永久物件）
-        elif (
-            is_day_time and self.spawn_timer >= self.spawn_interval * 2
-        ):  # 白天生成間隔更長
-            self.spawn_timer = 0
+            if is_night_time:
+                # 夜晚優先生成怪物
+                if self._try_spawn_monster(player_x, player_y):
+                    messages.append("夜晚: 黑暗中出現了危險的怪物...")
+
+            # 🔥 無論白天夜晚都要檢查並生成其他物件
             self._spawn_random_object(player_x, player_y)
 
         # 更新怪物行為 - 主動攻擊系統
@@ -267,32 +266,81 @@ class WorldManager:
         return False
 
     def _spawn_random_object(self, player_x: float = 0, player_y: float = 0) -> None:
-        """隨機生成世界物件（不包括河流）"""
-        if len(self.objects) >= WORLD_CONFIG["max_objects"]:
-            return
+        """🔥 無限世界生成系統 - 隨機生成世界物件"""
+        # 🔥 實現無限世界：動態調整最大物件數
+        active_objects = len([obj for obj in self.objects if obj.active])
 
-        # 在玩家周圍適當範圍內生成
-        spawn_range = 800  # 在玩家800像素範圍內生成
-        min_distance = 200  # 距離玩家至少200像素
+        # 🔥 基於玩家周圍的物件密度動態生成
+        nearby_objects = self.get_nearby_objects(player_x, player_y, 600)
+        nearby_count = len(nearby_objects)
 
-        attempts = 0
-        while attempts < 10:
-            # 隨機生成位置
-            angle = random.uniform(0, 2 * math.pi)
-            distance = random.uniform(min_distance, spawn_range)
+        # 如果玩家周圍物件不足，增加生成
+        if nearby_count < 30:  # 玩家周圍保持至少30個物件
+            # 🔥 擴大生成範圍，支持無限探索
+            spawn_range = 1200  # 在玩家1200像素範圍內生成
+            min_distance = 300  # 距離玩家至少300像素
 
-            x = player_x + distance * math.cos(angle)
-            y = player_y + distance * math.sin(angle)
+            # 🔥 批量生成多個物件
+            spawn_count = min(5, 30 - nearby_count)  # 一次最多生成5個
 
-            if self._check_position_clear(x, y, 40):
-                # 選擇物件類型（排除永久物件）
-                obj_type = self._choose_object_type(exclude_permanent=True)
+            for _ in range(spawn_count):
+                attempts = 0
+                while attempts < 15:  # 增加嘗試次數
+                    # 隨機生成位置
+                    angle = random.uniform(0, 2 * math.pi)
+                    distance = random.uniform(min_distance, spawn_range)
 
-                # 進一步排除河流
-                if obj_type != "river":
-                    self._spawn_object(obj_type, x, y)
-                break
-            attempts += 1
+                    x = player_x + distance * math.cos(angle)
+                    y = player_y + distance * math.sin(angle)
+
+                    if self._check_position_clear(x, y, 40):
+                        # 選擇物件類型（排除永久物件）
+                        obj_type = self._choose_object_type(exclude_permanent=True)
+
+                        # 進一步排除河流
+                        if obj_type != "river":
+                            self._spawn_object(obj_type, x, y)
+                            break
+                    attempts += 1
+
+        # 🔥 清理遠離玩家的物件，防止記憶體溢出
+        self._cleanup_distant_objects(player_x, player_y)
+
+    def _cleanup_distant_objects(self, player_x: float, player_y: float) -> None:
+        """
+        🔥 清理距離玩家太遠的物件，實現無限世界
+
+        Args:
+            player_x, player_y (float): 玩家當前位置
+        """
+        cleanup_distance = 2000  # 超過2000像素的物件將被清理
+        objects_to_remove = []
+
+        for obj in self.objects:
+            if not obj.active:
+                continue
+
+            # 計算物件與玩家的距離
+            distance = math.sqrt((obj.x - player_x) ** 2 + (obj.y - player_y) ** 2)
+
+            # 🔥 保護重要物件：工作台、熔爐等玩家建造的建築
+            if isinstance(obj, (Workbench, Furnace)):
+                continue  # 永遠不清理玩家建造的建築
+
+            # 🔥 保護河流等永久資源
+            if isinstance(obj, River):
+                continue  # 河流是珍貴資源，不輕易清理
+
+            # 清理距離太遠的物件
+            if distance > cleanup_distance:
+                objects_to_remove.append(obj)
+
+        # 執行清理
+        for obj in objects_to_remove:
+            obj.active = False
+
+        if objects_to_remove:
+            print(f"🧹 清理了 {len(objects_to_remove)} 個遠離的世界物件")
 
     def get_nearby_objects(self, x: float, y: float, radius: float) -> List[GameObject]:
         """

@@ -48,6 +48,9 @@ COLORS = {
 
 PLAYER_CONFIG = {
     "speed": 200,  # 像素/秒
+    "sprint_speed": 350,  # 衝刺速度 (像素/秒)
+    "sprint_energy_cost": 25,  # 衝刺每秒消耗的體力
+    "sprint_threshold": 20,  # 衝刺最低體力門檻
     "size": (32, 32),  # 玩家尺寸
     "start_pos": (640, 360),  # 初始位置
     "interaction_range": 50,  # 互動範圍
@@ -60,7 +63,7 @@ SURVIVAL_STATS = {
     "health": {"max": 100, "regen_rate": 0.1, "current": 100},  # 每秒恢復速率
     "hunger": {"max": 100, "decay_rate": 0.2, "current": 100},  # 每秒減少速率
     "thirst": {"max": 100, "decay_rate": 0.3, "current": 100},  # 每秒減少速率
-    "energy": {"max": 100, "regen_rate": 0.15, "current": 100},  # 每秒恢復速率
+    "energy": {"max": 100, "regen_rate": 0.3, "current": 100},  # 每秒恢復速率（提升！）
     "sanity": {"max": 100, "decay_rate": 0.05, "current": 100},  # 每秒減少速率
 }
 
@@ -431,12 +434,15 @@ WORLD_OBJECTS = {
 # ====== 世界生成參數 ======
 
 WORLD_CONFIG = {
-    "initial_objects": 500,  # 大幅增加初始物件數量
-    "max_objects": 500,  # 大幅增加最大物件數量
-    "spawn_interval": 0.1,  # 極快生成間隔，加快生成速度
+    "initial_objects": 200,  # 初始物件數量（減少以支持動態生成）
+    "max_objects": 1000,  # 增加最大物件數量支持無限世界
+    "spawn_interval": 0.5,  # 生成間隔（稍微放慢以避免過度生成）
     "safe_zone_radius": 60,  # 玩家周圍安全區域
-    "river_spawn_limit": 5,  # 世界中河流的最大數量
+    "river_spawn_limit": 8,  # 增加河流數量限制
     "permanent_objects_generated": False,  # 是否已生成永久物件
+    "infinite_world": True,  # 🔥 啟用無限世界系統
+    "cleanup_distance": 2000,  # 清理距離玩家超過此距離的物件
+    "min_nearby_objects": 30,  # 玩家周圍最少物件數量
 }
 
 # ====== 時間系統配置 ======

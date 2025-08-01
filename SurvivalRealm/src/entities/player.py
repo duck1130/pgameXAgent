@@ -119,6 +119,7 @@ class Player:
         self.velocity_x = 0
         self.velocity_y = 0
         self.is_moving = False
+        self.is_sprinting = False  # 🔥 新增：衝刺狀態
         self.has_moved_this_turn = False  # 回合制移動標記
         self.previous_position = (x, y)  # 記錄上一次位置
 
@@ -171,12 +172,17 @@ class Player:
         # 硬漢貓咪開發提醒：給玩家一些基礎食物，不然會餓死的！
         food_item = item_database.get_item("food")
         berry_item = item_database.get_item("berry")
+        mushroom_item = item_database.get_item("mushroom")  # 🔥 新增蘑菇
 
         if food_item:
             self.inventory.add_item(food_item, 5)  # 5個基礎食物
 
         if berry_item:
             self.inventory.add_item(berry_item, 8)  # 8個漿果
+
+        # 🔥 給玩家一些治療蘑菇用於測試衝刺和治療系統
+        if mushroom_item:
+            self.inventory.add_item(mushroom_item, 6)  # 6個蘑菇
 
     def get_tool_efficiency(self, target_type: str) -> float:
         """
@@ -266,24 +272,35 @@ class Player:
         self.velocity_x = 0
         self.velocity_y = 0
         self.is_moving = False
+        self.is_sprinting = False
+
+        # 🔥 檢查衝刺條件（按住Shift且體力足夠）
+        can_sprint = (
+            keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+        ) and self.survival_stats.energy >= PLAYER_CONFIG["sprint_threshold"]
+
+        # 選擇移動速度
+        current_speed = (
+            PLAYER_CONFIG["sprint_speed"] if can_sprint else PLAYER_CONFIG["speed"]
+        )
 
         # WASD 移動控制
         if keys[pygame.K_w] or keys[pygame.K_UP]:
-            self.velocity_y = -self.speed
+            self.velocity_y = -current_speed
             self.is_moving = True
         if keys[pygame.K_s] or keys[pygame.K_DOWN]:
-            self.velocity_y = self.speed
+            self.velocity_y = current_speed
             self.is_moving = True
         if keys[pygame.K_a] or keys[pygame.K_LEFT]:
-            self.velocity_x = -self.speed
+            self.velocity_x = -current_speed
             self.is_moving = True
         if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-            self.velocity_x = self.speed
+            self.velocity_x = current_speed
             self.is_moving = True
 
-        # 移動時消耗體力
-        if self.is_moving and self.survival_stats.energy > 0:
-            self.survival_stats.energy = max(0, self.survival_stats.energy - 0.1)
+        # 🔥 設定衝刺狀態
+        if self.is_moving and can_sprint:
+            self.is_sprinting = True
 
     def interact_with_world(self, world_manager: "WorldManager"):
         """
@@ -453,6 +470,17 @@ class Player:
                 100, self.survival_stats.hunger + recovery_amount
             )
 
+        # 🔥 香菇特殊效果：既補血又補體力！
+        if food_type == "mushroom":
+            # 香菇額外恢復生命值和體力
+            self.survival_stats.health = min(
+                100, self.survival_stats.health + 20
+            )  # 恢復20點血
+            self.survival_stats.energy = min(
+                100, self.survival_stats.energy + 30
+            )  # 恢復30點體力
+            print("香菇效果：恢復20點生命值和30點體力！")
+
         # 特殊效果食物
         if food_type == "health_potion":
             # 生命藥水恢復大量生命值
@@ -507,6 +535,19 @@ class Player:
         # 記錄舊位置用於回合制檢測
         old_x, old_y = self.x, self.y
 
+        # 🔥 衝刺體力消耗
+        if self.is_sprinting:
+            sprint_cost = PLAYER_CONFIG["sprint_energy_cost"] * delta_time
+            self.survival_stats.energy = max(
+                0, self.survival_stats.energy - sprint_cost
+            )
+        elif self.is_moving:
+            # 普通移動消耗較少體力
+            normal_move_cost = 5 * delta_time  # 每秒消耗5點體力
+            self.survival_stats.energy = max(
+                0, self.survival_stats.energy - normal_move_cost
+            )
+
         # 更新位置
         self.x += self.velocity_x * delta_time
         self.y += self.velocity_y * delta_time
@@ -541,14 +582,12 @@ class Player:
                 self.velocity_y = 0  # 停止向下移動
 
             print(
-                f"🧱 洞穴邊界檢查: 玩家位置 ({self.x:.1f}, {self.y:.1f}), 房間大小 {room_width}x{room_height}"
+                f"洞穴邊界檢查: 玩家位置 ({self.x:.1f}, {self.y:.1f}), 房間大小 {room_width}x{room_height}"
             )
         else:
-            # 在相機系統中，玩家可以在世界中自由移動
-            # 不再有螢幕邊界限制，但可以設定世界邊界
-            world_limit = 5000  # 世界大小限制
-            self.x = max(-world_limit, min(world_limit, self.x))
-            self.y = max(-world_limit, min(world_limit, self.y))
+            # 🔥 主世界無邊界！玩家可以無限探索
+            # 不再有任何世界邊界限制，讓探索更自由
+            pass  # 移除所有邊界檢查
 
         # 檢查是否真的移動了（回合制系統）
         moved_distance = math.sqrt((self.x - old_x) ** 2 + (self.y - old_y) ** 2)
@@ -583,6 +622,13 @@ class Player:
         else:
             player_color = COLORS["DANGER"]
 
+        # 🔥 衝刺狀態視覺效果：玩家發光！
+        if self.is_sprinting:
+            # 衝刺時使用亮黃色邊框
+            sprint_glow_color = (255, 255, 0)  # 黃色發光
+        else:
+            sprint_glow_color = None
+
         # 如果使用相機系統，玩家固定在指定位置
         if camera_x is not None and camera_y is not None:
             # 玩家固定在相機指定位置（通常是螢幕中心）
@@ -595,6 +641,17 @@ class Player:
 
             # 繪製玩家主體
             pygame.draw.rect(screen, player_color, player_rect)
+
+            # 🔥 衝刺發光效果
+            if sprint_glow_color:
+                # 繪製衝刺光環
+                glow_rect = pygame.Rect(
+                    camera_x - self.width // 2 - 3,
+                    camera_y - self.height // 2 - 3,
+                    self.width + 6,
+                    self.height + 6,
+                )
+                pygame.draw.rect(screen, sprint_glow_color, glow_rect, 3)  # 黃色邊框
 
             # 繪製眼睛表示方向
             eye_size = 4
@@ -610,6 +667,13 @@ class Player:
             self._draw_equipment_indicators_with_camera(screen, camera_x, camera_y)
         else:
             # 傳統繪製方式（向後兼容）
+            # 🔥 衝刺發光效果
+            if sprint_glow_color:
+                glow_rect = pygame.Rect(
+                    self.x - 3, self.y - 3, self.width + 6, self.height + 6
+                )
+                pygame.draw.rect(screen, sprint_glow_color, glow_rect, 3)
+
             pygame.draw.rect(screen, player_color, self.rect)
 
             # 繪製眼睛表示方向

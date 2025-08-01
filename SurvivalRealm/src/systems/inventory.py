@@ -272,7 +272,7 @@ class ItemDatabase:
                 "蘑菇",
                 ItemType.CONSUMABLE,
                 16,
-                "野生蘑菇，恢復飢餓值但可能有副作用",
+                "神奇治療蘑菇！恢復飢餓值、生命值和體力",
             )
         )
 
