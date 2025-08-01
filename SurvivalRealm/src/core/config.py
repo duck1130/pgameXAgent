@@ -49,12 +49,12 @@ COLORS = {
 PLAYER_CONFIG = {
     "speed": 200,  # 像素/秒
     "sprint_speed": 350,  # 衝刺速度 (像素/秒)
-    "sprint_energy_cost": 25,  # 衝刺每秒消耗的體力
-    "sprint_threshold": 20,  # 衝刺最低體力門檻
+    "sprint_energy_cost": 20,  # 衝刺每秒體力消耗
+    "sprint_threshold": 10,  # 衝刺最低體力要求
     "size": (32, 32),  # 玩家尺寸
-    "start_pos": (640, 360),  # 初始位置
     "interaction_range": 50,  # 互動範圍
-    "interaction_cooldown": 0.5,  # 互動冷卻時間
+    "interaction_cooldown": 0.5,  # 互動冷卻時間(秒)
+    "footstep_interval": 0.4,  # 🦶 腳步聲間隔（秒）
 }
 
 # ====== 生存狀態參數 ======
@@ -517,11 +517,18 @@ AUDIO_CONFIG = {
     "sfx_volume": 0.8,
     "music_volume": 0.5,
     "sound_files": {
-        "interact": "interact.wav",
-        "craft": "craft.wav",
-        "attack": "attack.wav",
-        "pickup": "pickup.wav",
+        "interact": "assets/sounds/minecraft/entity_item_pickup.wav",
+        "craft": "assets/sounds/minecraft/block_note_block_pling.wav",
+        "attack": "assets/sounds/minecraft/block_stone_hit1.wav",
+        "pickup": "assets/sounds/minecraft/entity_item_pickup.wav",
+        "footstep": "assets/sounds/grass6.ogg",  # 🦶 玩家移動腳步聲
+        "chest_open": "assets/sounds/minecraft/block_chest_open.wav",
+        "stone_break": "assets/sounds/minecraft/block_stone_break1.wav",
+        "wood_break": "assets/sounds/minecraft/block_wood_break1.wav",
     },
+    # 音效播放控制
+    "footstep_interval": 0.4,  # 腳步聲播放間隔（秒）
+    "max_sound_distance": 300,  # 最大音效距離
 }
 
 # ====== 音樂配置 ======

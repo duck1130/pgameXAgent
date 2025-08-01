@@ -593,6 +593,21 @@ class Player:
         moved_distance = math.sqrt((self.x - old_x) ** 2 + (self.y - old_y) ** 2)
         if moved_distance > 1.0:  # 移動超過1像素才算真正移動
             self.has_moved_this_turn = True
+
+            # 🦶 播放腳步聲音效！硬漢貓咪也要有腳步聲呢～
+            from ..systems.sound_manager import sound_manager
+
+            # 衝刺時腳步聲更頻繁且音量更大
+            if self.is_sprinting:
+                # 衝刺時腳步聲間隔更短，音量更大
+                sound_manager.footstep_interval = 0.25  # 衝刺時更快的腳步聲
+                sound_manager.play_footstep()
+            else:
+                # 正常移動時使用預設間隔
+                sound_manager.footstep_interval = PLAYER_CONFIG.get(
+                    "footstep_interval", 0.4
+                )
+                sound_manager.play_footstep()
         else:
             self.has_moved_this_turn = False
 

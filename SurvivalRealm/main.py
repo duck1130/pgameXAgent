@@ -54,6 +54,7 @@ class Game:
         from src.world.world_manager import WorldManager
         from src.systems.time_manager import TimeManager
         from src.systems.music_manager import MusicManager
+        from src.systems.sound_manager import sound_manager
         from src.world.cave_system import cave_system
         from src.systems.camera import camera  # 導入相機系統
 
@@ -62,6 +63,10 @@ class Game:
 
         self.music_manager = MusicManager()
         print("音樂: 音樂管理器初始化完成！")
+
+        # 音效系統
+        self.sound_manager = sound_manager
+        print("🔊 音效管理器初始化完成！腳步聲系統就位")
 
         # 洞穴系統
         self.cave_system = cave_system
@@ -1061,6 +1066,7 @@ class Game:
 
         # 清理資源
         self.music_manager.cleanup()
+        self.sound_manager.cleanup()
         pygame.quit()
         print("👋 遊戲結束，感謝遊玩！")
 
