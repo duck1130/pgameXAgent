@@ -10,6 +10,12 @@
 - `src/` 目錄：完整的模組化架構 (v3.2.0) - **當前使用**
 - `main.py`：主程式入口點，完整功能實現
 - 不再有舊架構或 `main_old.py`，專案已完成現代化重構
+- 全螢幕模式預設啟用：`WINDOW_CONFIG["fullscreen"]: True`
+
+**虛擬環境狀態**:
+- 專案包含 `.venv/` 虛擬環境，已安裝 Pygame 2.6.1
+- 開發前先啟用：`source .venv/bin/activate`
+- Python 版本：3.13.5
 
 
 ## 🏗️ 核心架構與設計模式
@@ -27,10 +33,14 @@ src/
 │   ├── cave_system.py     # 🕳️ 洞穴探險系統 (v3.1.0 新增)
 │   └── world_objects.py   # 各種世界物件類別
 └── ui/                    # 📱 UI 系統與字體回退處理
-tests/
-├── test_utils.py          # 🛠️ 共用測試工具模組 (重構後)
-├── test_game_systems.py   # 綜合整合測試
-└── run_tests.py           # 測試執行器
+assets/
+├── sounds/                # 🎵 音樂和音效檔案
+│   ├── minecraft_background.wav  # 背景音樂
+│   ├── minecraft_night.wav       # 夜間音樂
+│   └── minecraft/               # Minecraft 風格音效庫
+└── sprites/               # 🎨 圖像和精靈檔案
+    ├── player_skins/      # 玩家皮膚和物品圖示
+    └── terrain/           # 地形材質檔案
 ```
 
 ### 關鍵架構模式
@@ -129,32 +139,63 @@ if new_x < -WORLD_BOUNDARY or new_x > WORLD_BOUNDARY:
 
 ## 🛠️ 開發工作流程
 
+### 環境設定與依賴
+
+**Python 環境要求**:
+- Python 3.8+ (專案使用 Python 3.13.5)
+- Pygame 2.6.1+
+- 專案包含 `.venv/` 虛擬環境
+
+**環境啟用**:
+```bash
+# macOS/Linux
+source .venv/bin/activate
+
+# Windows
+.venv\Scripts\activate
+```
+
 ### 執行與測試
 
 ```bash
 cd SurvivalRealm
 
+# 啟用虛擬環境 (如果存在)
+source .venv/bin/activate  # macOS/Linux
+# 或 .venv\Scripts\activate  # Windows
+
 # 主遊戲執行
 python main.py                    # 主遊戲入口點
 
-# 快速功能測試腳本 - 無圖形界面測試
+# 快速功能測試腳本 - 驗證系統導入
 python -c "from main import Game; game = Game(); print('✅ 遊戲初始化成功')"
 
-# 洞穴系統測試
+### 測試與驗證
+
+目前專案採用輕量級測試方式：
+
+```bash
+# 主遊戲執行
+python main.py                    # 主遊戲入口點
+
+# 快速功能測試腳本 - 驗證系統導入
+python -c "from main import Game; game = Game(); print('✅ 遊戲初始化成功')"
+
+# 音響系統測試
 python -c "
-from src.world.cave_system import cave_system
-from src.core.config import CAVE_CONFIG
-print('🕳️ 洞穴系統：最大深度 %d 層' % CAVE_CONFIG['max_depth'])
-room = cave_system._generate_cave_room(10)
-print('第10層房間：怪物 %d 個，寶物 %d 個' % (len(room.monsters), len(room.treasures)))
+import pygame.mixer
+pygame.mixer.init()
+print('🎵 音響系統正常')
+pygame.mixer.quit()
 "
 
-# 相機系統測試
+# 模組導入測試
 python -c "
+from src.core.config import WINDOW_CONFIG, COLORS, GameState
+from src.systems.inventory import item_database
+from src.world.cave_system import cave_system
 from src.systems.camera import camera
-print('📷 相機系統初始化完成')
-camera.update(100, 200, 0.016)
-print('相機位置:', camera.world_x, camera.world_y)
+print('✅ 所有核心模組導入成功')
 "
 ```
 
@@ -304,8 +345,8 @@ from src.systems.camera import camera  # 單例相機系統
 - 視窗尺寸動態偵測：`WINDOW_CONFIG["width/height"]` 由系統設定
 - 相機系統使用動態螢幕中心：`screen_center_x/y = width//2, height//2`
 
-### 測試架構 (重構後)
-- **測試功能已簡化**: 使用 Python 測試腳本進行快速驗證
+### 測試架構 (輕量級)
+- **無傳統測試檔案**: 採用快速 Python 腳本驗證系統功能
 - **系統測試**: `python -c "from main import Game; game = Game()"` 驗證初始化
 - **模組測試**: 直接導入測試特定系統功能 
 - **相機測試**: `from src.systems.camera import camera` 測試相機系統
