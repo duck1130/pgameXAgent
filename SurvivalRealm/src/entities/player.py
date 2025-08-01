@@ -541,11 +541,8 @@ class Player:
             self.equipped_weapon and self.equipped_weapon.id == "iron_sword"
         )
 
-        # 播放攻擊音效
-        if has_iron_sword:
-            sound_manager.play_sword_whoosh_sound()
-        else:
-            sound_manager.play_attack_sound()
+        # 播放攻擊音效 - 始終播放劍揮擊音效
+        sound_manager.play_sword_whoosh_sound()
 
         # 找到攻擊目標
         targets = []
@@ -584,11 +581,8 @@ class Player:
                 old_health = target.health
                 target.health -= total_damage
 
-                # 播放命中音效
-                if has_iron_sword:
-                    sound_manager.play_sword_hit_sound()
-                else:
-                    sound_manager.play_attack_sound()
+                # 播放命中音效 - 始終播放劍命中音效
+                sound_manager.play_sword_hit_sound()
 
                 if target.health <= 0:
                     target.destroy()

@@ -12,8 +12,8 @@ from enum import Enum
 # ====== 視窗配置參數 ======
 
 WINDOW_CONFIG = {
-    "width": 0,  # 全螢幕模式，寬度由系統決定
-    "height": 0,  # 全螢幕模式，高度由系統決定
+    "width": 1920,  # 預設寬度，全螢幕模式時會被覆蓋
+    "height": 1080,  # 預設高度，全螢幕模式時會被覆蓋
     "title": "Survival Realm - 生存領域",
     "fps": 60,
     "fullscreen": True,  # 啟用全螢幕模式
@@ -533,6 +533,8 @@ AUDIO_CONFIG = {
         "sword_whoosh": "Sword_whoosh_1.mp3",  # 揮劍音效
         "sword_hit": "Sword_slash_2.mp3",  # 砍中怪物音效
         "tree_break": "break2.ogg",  # 砍樹音效
+        # ⛏️ 挖礦音效
+        "mining": "stone1.ogg",  # 挖礦音效
     },
     # 音效播放控制
     "footstep_interval": 0.4,  # 腳步聲播放間隔（秒）

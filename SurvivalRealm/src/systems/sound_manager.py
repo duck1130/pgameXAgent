@@ -178,6 +178,10 @@ class SoundManager:
         """播放砍樹音效"""
         return self.play_sound("tree_break")
 
+    def play_mining_sound(self) -> bool:
+        """播放挖礦音效"""
+        return self.play_sound("mining")
+
     def play_chest_open_sound(self) -> bool:
         """播放寶箱開啟音效"""
         return self.play_sound("chest_open")

@@ -24,25 +24,54 @@ if TYPE_CHECKING:
 class Tree(GameObject):
     """樹木物件 - 可砍伐獲得木材"""
 
+    # 類級別的圖像快取，避免重複載入
+    _tree_image = None
+    _image_loaded = False
+
     def __init__(self, x: float, y: float):
         size = WORLD_OBJECTS["tree"]["size"]
         super().__init__(x, y, size[0], size[1])
         self.health = WORLD_OBJECTS["tree"]["health"]
         self.max_health = self.health
+        self._load_tree_image()
+
+    @classmethod
+    def _load_tree_image(cls):
+        """載入樹木材質圖像"""
+        if not cls._image_loaded:
+            try:
+                # 載入 field_forest_16×16.png 材質
+                cls._tree_image = pygame.image.load(
+                    "field_forest_16×16.png"
+                ).convert_alpha()
+                # 縮放到樹的大小
+                tree_size = WORLD_OBJECTS["tree"]["size"]
+                cls._tree_image = pygame.transform.scale(cls._tree_image, tree_size)
+                cls._image_loaded = True
+                print("✅ 成功載入樹木材質: field_forest_16×16.png")
+            except (pygame.error, FileNotFoundError) as e:
+                print(f"❌ 載入樹木材質失敗: {e}")
+                cls._tree_image = None
+                cls._image_loaded = True
 
     def draw(self, screen: pygame.Surface) -> None:
         """繪製樹木"""
         if not self.active:
             return
 
-        # 樹幹
-        trunk_rect = pygame.Rect(self.x + 15, self.y + 40, 10, 20)
-        pygame.draw.rect(screen, (101, 67, 33), trunk_rect)
+        # 使用材質圖像繪製樹木
+        if self._tree_image is not None:
+            screen.blit(self._tree_image, (int(self.x), int(self.y)))
+        else:
+            # 如果載入材質失敗，使用原來的繪製方式
+            # 樹幹
+            trunk_rect = pygame.Rect(self.x + 15, self.y + 40, 10, 20)
+            pygame.draw.rect(screen, (101, 67, 33), trunk_rect)
 
-        # 樹冠
-        crown_rect = pygame.Rect(self.x, self.y, 40, 40)
-        color = WORLD_OBJECTS["tree"]["color"]
-        pygame.draw.ellipse(screen, color, crown_rect)
+            # 樹冠
+            crown_rect = pygame.Rect(self.x, self.y, 40, 40)
+            color = WORLD_OBJECTS["tree"]["color"]
+            pygame.draw.ellipse(screen, color, crown_rect)
 
         # 生命值條（如果受損）
         if self.health < self.max_health:
@@ -94,21 +123,50 @@ class Tree(GameObject):
 class Rock(GameObject):
     """石頭物件 - 可挖掘獲得石頭和礦物"""
 
+    # 類級別的圖像快取，避免重複載入
+    _rock_image = None
+    _image_loaded = False
+
     def __init__(self, x: float, y: float):
         size = WORLD_OBJECTS["rock"]["size"]
         super().__init__(x, y, size[0], size[1])
         self.health = WORLD_OBJECTS["rock"]["health"]
         self.max_health = self.health
+        self._load_rock_image()
+
+    @classmethod
+    def _load_rock_image(cls):
+        """載入石頭材質圖像"""
+        if not cls._image_loaded:
+            try:
+                # 載入 field_mountain_02_16×16px.png 材質
+                cls._rock_image = pygame.image.load(
+                    "field_mountain_02_16×16px.png"
+                ).convert_alpha()
+                # 縮放到石頭的大小
+                rock_size = WORLD_OBJECTS["rock"]["size"]
+                cls._rock_image = pygame.transform.scale(cls._rock_image, rock_size)
+                cls._image_loaded = True
+                print("✅ 成功載入石頭材質: field_mountain_02_16×16px.png")
+            except (pygame.error, FileNotFoundError) as e:
+                print(f"❌ 載入石頭材質失敗: {e}")
+                cls._rock_image = None
+                cls._image_loaded = True
 
     def draw(self, screen: pygame.Surface) -> None:
         """繪製石頭"""
         if not self.active:
             return
 
-        color = WORLD_OBJECTS["rock"]["color"]
-        pygame.draw.ellipse(screen, color, self.rect)
-        # 添加紋理
-        pygame.draw.ellipse(screen, (169, 169, 169), self.rect, 3)
+        # 使用材質圖像繪製石頭
+        if self._rock_image is not None:
+            screen.blit(self._rock_image, (int(self.x), int(self.y)))
+        else:
+            # 如果載入材質失敗，使用原來的繪製方式
+            color = WORLD_OBJECTS["rock"]["color"]
+            pygame.draw.ellipse(screen, color, self.rect)
+            # 添加紋理
+            pygame.draw.ellipse(screen, (169, 169, 169), self.rect, 3)
 
         # 生命值條（如果受損）
         if self.health < self.max_health:
@@ -130,8 +188,14 @@ class Rock(GameObject):
         if not self.active:
             return None
 
+        # 導入音效管理器
+        from ..systems.sound_manager import sound_manager
+
         efficiency = player.get_tool_efficiency("rock")
         damage = int(efficiency)
+
+        # 播放挖礦音效
+        sound_manager.play_mining_sound()
 
         self.health -= damage
         if self.health <= 0:

@@ -44,6 +44,18 @@ class Game:
         self._state = GameState.PLAYING  # 使用私有變量
         self.clock = pygame.time.Clock()
 
+        # 載入草地材質
+        try:
+            self.grass_texture = pygame.image.load("field_grass_16×16.png")
+            self.grass_size = 16  # 草地磚的大小
+            print("✅ 成功載入草地材質！")
+        except pygame.error as e:
+            print(f"⚠️ 無法載入草地材質: {e}")
+            # 如果載入失敗，創建一個簡單的草地色塊作為備用
+            self.grass_texture = pygame.Surface((16, 16))
+            self.grass_texture.fill((34, 139, 34))  # 森林綠
+            self.grass_size = 16
+
         # 創建遊戲視窗
         # 初始化全螢幕模式
         if WINDOW_CONFIG.get("fullscreen", False):
@@ -804,6 +816,11 @@ class Game:
         # 更新攻擊時間
         self.player.last_attack = current_time
 
+        # 導入音效管理器並播放攻擊音效（不論是否有目標）
+        from src.systems.sound_manager import sound_manager
+
+        sound_manager.play_sword_whoosh_sound()
+
         # 計算玩家中心點
         center_x = self.player.x + self.player.width // 2
         center_y = self.player.y + self.player.height // 2
@@ -827,20 +844,11 @@ class Game:
         if not nearby_monsters:
             return "揮空了！洞穴中沒有攻擊到任何目標"
 
-        # 導入音效管理器
-        from src.systems.sound_manager import sound_manager
-
         # 檢查是否有鐵劍
         has_iron_sword = (
             self.player.equipped_weapon
             and self.player.equipped_weapon.id == "iron_sword"
         )
-
-        # 播放攻擊音效
-        if has_iron_sword:
-            sound_manager.play_sword_whoosh_sound()
-        else:
-            sound_manager.play_attack_sound()
 
         # 計算攻擊傷害
         base_damage = PLAYER_CONFIG["base_attack_damage"]
@@ -852,11 +860,8 @@ class Game:
             old_health = monster.health
             monster.health -= total_damage
 
-            # 播放命中音效
-            if has_iron_sword:
-                sound_manager.play_sword_hit_sound()
-            else:
-                sound_manager.play_attack_sound()
+            # 播放命中音效 - 始終播放劍命中音效
+            sound_manager.play_sword_hit_sound()
 
             if monster.health <= 0:
                 # 怪物死亡
@@ -984,6 +989,33 @@ class Game:
         # 更新顯示
         pygame.display.flip()
 
+    def _draw_grass_background(self) -> None:
+        """繪製草地背景磚"""
+        if not hasattr(self, "grass_texture"):
+            return
+
+        # 獲取相機可見範圍
+        left, top, right, bottom = self.camera.get_visible_area()
+
+        # 計算需要繪製的磚範圍
+        start_tile_x = int(left // self.grass_size) - 1
+        start_tile_y = int(top // self.grass_size) - 1
+        end_tile_x = int(right // self.grass_size) + 2
+        end_tile_y = int(bottom // self.grass_size) + 2
+
+        # 繪製草地磚
+        for tile_x in range(start_tile_x, end_tile_x):
+            for tile_y in range(start_tile_y, end_tile_y):
+                # 計算世界座標
+                world_x = tile_x * self.grass_size
+                world_y = tile_y * self.grass_size
+
+                # 轉換為螢幕座標
+                screen_x, screen_y = self.camera.world_to_screen(world_x, world_y)
+
+                # 繪製草地磚
+                self.screen.blit(self.grass_texture, (screen_x, screen_y))
+
     def _draw_gameplay(self) -> None:
         """繪製遊戲進行畫面"""
         if self.cave_system.in_cave:
@@ -991,6 +1023,9 @@ class Game:
             self._draw_cave_scene()
         else:
             # 繪製地表場景（使用相機系統）
+            # 先繪製草地背景
+            self._draw_grass_background()
+            # 然後繪製世界物件
             self.world_manager.draw(self.screen, self.camera)
 
         # 繪製玩家（固定在螢幕中心）
