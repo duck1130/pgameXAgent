@@ -166,6 +166,18 @@ class SoundManager:
         """播放攻擊音效"""
         return self.play_sound("attack")
 
+    def play_sword_whoosh_sound(self) -> bool:
+        """播放劍揮擊音效"""
+        return self.play_sound("sword_whoosh")
+
+    def play_sword_hit_sound(self) -> bool:
+        """播放劍命中音效"""
+        return self.play_sound("sword_hit")
+
+    def play_tree_break_sound(self) -> bool:
+        """播放砍樹音效"""
+        return self.play_sound("tree_break")
+
     def play_chest_open_sound(self) -> bool:
         """播放寶箱開啟音效"""
         return self.play_sound("chest_open")

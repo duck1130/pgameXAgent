@@ -10,6 +10,7 @@ Survival Realm - 玩家角色系統
 import pygame
 import time
 import math
+import random
 from dataclasses import dataclass
 from typing import Optional, TYPE_CHECKING
 
@@ -149,6 +150,9 @@ class Player:
         # 戰鬥相關
         self.attack_damage = 1  # 基礎攻擊力
         self.defense = 0  # 防禦力
+        self.attack_range = PLAYER_CONFIG["attack_range"]
+        self.last_attack = 0
+        self.attack_cooldown = PLAYER_CONFIG["attack_cooldown"]
 
     def _add_starter_items(self) -> None:
         """
@@ -500,6 +504,156 @@ class Player:
         self.survival_stats.thirst = min(
             100, self.survival_stats.thirst + recovery_amount
         )
+
+    def attack(self, world_manager: "WorldManager") -> Optional[str]:
+        """
+        玩家攻擊動作
+
+        Args:
+            world_manager: 世界管理器
+
+        Returns:
+            Optional[str]: 攻擊結果訊息
+        """
+        current_time = time.time()
+
+        # 檢查攻擊冷卻
+        if current_time - self.last_attack < self.attack_cooldown:
+            return None
+
+        # 更新攻擊時間
+        self.last_attack = current_time
+
+        # 計算玩家中心點
+        center_x = self.x + self.width // 2
+        center_y = self.y + self.height // 2
+
+        # 獲取攻擊範圍內的物件
+        nearby_objects = world_manager.get_nearby_objects(
+            center_x, center_y, self.attack_range
+        )
+
+        # 導入音效管理器
+        from ..systems.sound_manager import sound_manager
+
+        # 檢查是否有鐵劍
+        has_iron_sword = (
+            self.equipped_weapon and self.equipped_weapon.id == "iron_sword"
+        )
+
+        # 播放攻擊音效
+        if has_iron_sword:
+            sound_manager.play_sword_whoosh_sound()
+        else:
+            sound_manager.play_attack_sound()
+
+        # 找到攻擊目標
+        targets = []
+        for obj in nearby_objects:
+            # 攻擊怪物
+            if (
+                hasattr(obj, "health")
+                and hasattr(obj, "damage")
+                and obj.__class__.__name__ in ["Monster", "CaveMonster"]
+            ):
+                targets.append(("monster", obj))
+            # 攻擊樹木（如果有鐵劍或工具）
+            elif obj.__class__.__name__ == "Tree" and (
+                has_iron_sword or self.equipped_tool
+            ):
+                targets.append(("tree", obj))
+
+        if not targets:
+            return "揮空了！沒有攻擊到任何目標"
+
+        # 計算攻擊傷害
+        base_damage = PLAYER_CONFIG["base_attack_damage"]
+        weapon_damage = 0
+
+        if has_iron_sword:
+            weapon_damage = 5  # 鐵劍額外傷害
+        elif self.equipped_tool and self.equipped_tool.id in ["axe", "pickaxe"]:
+            weapon_damage = 2  # 工具額外傷害
+
+        total_damage = base_damage + weapon_damage
+
+        results = []
+        for target_type, target in targets:
+            if target_type == "monster":
+                # 攻擊怪物
+                old_health = target.health
+                target.health -= total_damage
+
+                # 播放命中音效
+                if has_iron_sword:
+                    sound_manager.play_sword_hit_sound()
+                else:
+                    sound_manager.play_attack_sound()
+
+                if target.health <= 0:
+                    target.destroy()
+                    results.append(f"擊敗了怪物！造成{total_damage}點傷害")
+
+                    # 怪物死亡掉落物品
+                    drop_items = [("food", 1), ("wood", random.randint(1, 2))]
+                    for item_id, quantity in drop_items:
+                        item = item_database.get_item(item_id)
+                        if item:
+                            self.inventory.add_item(item, quantity)
+                else:
+                    results.append(
+                        f"攻擊怪物！造成{total_damage}點傷害 ({target.health}/{getattr(target, 'max_health', target.health)})"
+                    )
+
+            elif target_type == "tree":
+                # 攻擊樹木
+                efficiency = (
+                    self.get_tool_efficiency("tree") if self.equipped_tool else 1.0
+                )
+                damage = int(total_damage * efficiency)
+
+                old_health = target.health
+                target.health -= damage
+
+                # 播放砍樹音效
+                sound_manager.play_tree_break_sound()
+
+                if target.health <= 0:
+                    target.destroy()
+                    wood_amount = (
+                        random.randint(3, 6) if efficiency > 1 else random.randint(2, 4)
+                    )
+
+                    # 添加木材到背包
+                    wood_item = item_database.get_item("wood")
+                    if wood_item:
+                        self.inventory.add_item(wood_item, wood_amount)
+
+                    weapon_name = (
+                        "鐵劍"
+                        if has_iron_sword
+                        else (
+                            "斧頭"
+                            if self.equipped_tool and self.equipped_tool.id == "axe"
+                            else "工具"
+                        )
+                    )
+                    results.append(f"用{weapon_name}砍倒了樹！獲得木材 x{wood_amount}")
+                else:
+                    weapon_name = (
+                        "鐵劍"
+                        if has_iron_sword
+                        else (
+                            "斧頭"
+                            if self.equipped_tool and self.equipped_tool.id == "axe"
+                            else "工具"
+                        )
+                    )
+                    results.append(
+                        f"{weapon_name}砍伐中... ({target.health}/{target.max_health})"
+                    )
+
+        return " | ".join(results) if results else "攻擊未命中任何目標"
 
     def take_damage(self, damage: int) -> int:
         """

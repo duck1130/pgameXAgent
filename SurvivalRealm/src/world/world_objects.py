@@ -64,9 +64,15 @@ class Tree(GameObject):
         if not self.active:
             return None
 
+        # 導入音效管理器
+        from ..systems.sound_manager import sound_manager
+
         # 根據工具效率計算傷害
         efficiency = player.get_tool_efficiency("tree")
         damage = int(efficiency)
+
+        # 播放砍樹音效
+        sound_manager.play_tree_break_sound()
 
         self.health -= damage
         if self.health <= 0:

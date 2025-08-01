@@ -13,10 +13,18 @@ Survival Realm - 主遊戲程式
 import pygame
 import sys
 import time
+import math
 from typing import List, Tuple, Optional
 
 # 導入遊戲模組
-from src.core.config import WINDOW_CONFIG, COLORS, GameState, UI_CONFIG, CAVE_CONFIG
+from src.core.config import (
+    WINDOW_CONFIG,
+    COLORS,
+    GameState,
+    UI_CONFIG,
+    CAVE_CONFIG,
+    PLAYER_CONFIG,
+)
 from src.systems.inventory import item_database
 
 
@@ -371,6 +379,20 @@ class Game:
             # 放置建築物模式 (僅在遊戲狀態下)
             if self.state == GameState.PLAYING:
                 self._handle_place_building()
+
+        elif key == pygame.K_SPACE:
+            # 🗡️ 攻擊鍵 - 空白鍵攻擊 (僅在遊戲狀態下)
+            if self.state == GameState.PLAYING:
+                result = None
+                if self.cave_system.in_cave:
+                    # 在洞穴中攻擊洞穴怪物
+                    result = self._handle_cave_attack()
+                else:
+                    # 在地表攻擊
+                    result = self.player.attack(self.world_manager)
+
+                if result:
+                    self.add_message(result)
 
         elif key == pygame.K_m:
             # 切換音樂播放 (任何遊戲狀態都可以)
@@ -764,6 +786,106 @@ class Game:
                             self.add_message(
                                 f"怪物攻擊了你！受到 {actual_damage} 點傷害"
                             )
+
+    def _handle_cave_attack(self) -> Optional[str]:
+        """
+        處理洞穴中的攻擊行為
+
+        Returns:
+            Optional[str]: 攻擊結果訊息
+        """
+        import time
+
+        # 檢查攻擊冷卻
+        current_time = time.time()
+        if current_time - self.player.last_attack < self.player.attack_cooldown:
+            return None
+
+        # 更新攻擊時間
+        self.player.last_attack = current_time
+
+        # 計算玩家中心點
+        center_x = self.player.x + self.player.width // 2
+        center_y = self.player.y + self.player.height // 2
+
+        # 獲取洞穴中的怪物
+        cave_objects = self.cave_system.get_cave_objects()
+        nearby_monsters = []
+
+        for obj in cave_objects:
+            if obj.__class__.__name__ in ["CaveMonster"]:
+                # 計算距離
+                obj_center_x = obj.x + obj.width // 2
+                obj_center_y = obj.y + obj.height // 2
+                distance = math.sqrt(
+                    (obj_center_x - center_x) ** 2 + (obj_center_y - center_y) ** 2
+                )
+
+                if distance <= self.player.attack_range:
+                    nearby_monsters.append(obj)
+
+        if not nearby_monsters:
+            return "揮空了！洞穴中沒有攻擊到任何目標"
+
+        # 導入音效管理器
+        from src.systems.sound_manager import sound_manager
+
+        # 檢查是否有鐵劍
+        has_iron_sword = (
+            self.player.equipped_weapon
+            and self.player.equipped_weapon.id == "iron_sword"
+        )
+
+        # 播放攻擊音效
+        if has_iron_sword:
+            sound_manager.play_sword_whoosh_sound()
+        else:
+            sound_manager.play_attack_sound()
+
+        # 計算攻擊傷害
+        base_damage = PLAYER_CONFIG["base_attack_damage"]
+        weapon_damage = 5 if has_iron_sword else 0
+        total_damage = base_damage + weapon_damage
+
+        results = []
+        for monster in nearby_monsters:
+            old_health = monster.health
+            monster.health -= total_damage
+
+            # 播放命中音效
+            if has_iron_sword:
+                sound_manager.play_sword_hit_sound()
+            else:
+                sound_manager.play_attack_sound()
+
+            if monster.health <= 0:
+                # 怪物死亡
+                cave_objects.remove(monster)
+                results.append(f"擊敗了洞穴怪物！造成{total_damage}點傷害")
+
+                # 洞穴怪物掉落更好的物品
+                import random
+                from src.systems.inventory import item_database
+
+                drop_items = [
+                    ("crystal", 1),
+                    ("emerald", random.randint(1, 2)),
+                    ("food", random.randint(2, 3)),
+                ]
+
+                for item_id, quantity in drop_items:
+                    item = item_database.get_item(item_id)
+                    if item:
+                        self.player.inventory.add_item(item, quantity)
+            else:
+                max_health = getattr(
+                    monster, "max_health", monster.health + total_damage
+                )
+                results.append(
+                    f"攻擊洞穴怪物！造成{total_damage}點傷害 ({monster.health}/{max_health})"
+                )
+
+        return " | ".join(results) if results else "攻擊未命中任何洞穴怪物"
 
     def _handle_cave_entry_result(self, result: dict) -> None:
         """處理洞穴互動結果"""

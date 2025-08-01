@@ -55,6 +55,10 @@ PLAYER_CONFIG = {
     "interaction_range": 50,  # 互動範圍
     "interaction_cooldown": 0.5,  # 互動冷卻時間(秒)
     "footstep_interval": 0.4,  # 🦶 腳步聲間隔（秒）
+    # 🗡️ 攻擊系統配置
+    "attack_range": 60,  # 攻擊範圍
+    "attack_cooldown": 0.8,  # 攻擊冷卻時間(秒)
+    "base_attack_damage": 1,  # 基礎攻擊傷害
 }
 
 # ====== 生存狀態參數 ======
@@ -525,6 +529,10 @@ AUDIO_CONFIG = {
         "chest_open": "assets/sounds/minecraft/block_chest_open.wav",
         "stone_break": "assets/sounds/minecraft/block_stone_break1.wav",
         "wood_break": "assets/sounds/minecraft/block_wood_break1.wav",
+        # 🗡️ 劍類攻擊音效
+        "sword_whoosh": "Sword_whoosh_1.mp3",  # 揮劍音效
+        "sword_hit": "Sword_slash_2.mp3",  # 砍中怪物音效
+        "tree_break": "break2.ogg",  # 砍樹音效
     },
     # 音效播放控制
     "footstep_interval": 0.4,  # 腳步聲播放間隔（秒）
