@@ -6,10 +6,10 @@
 
 ### 🚨 重要架構提醒
 
-**雙重架構並存**: 專案目前存在兩套架構：
-- `src/` 目錄：新的模組化架構 (v3.1.0+) - **推薦使用**
-- `game/` 目錄：舊架構保留作為參考
-- `main.py` 目前為空，使用 `main_old.py` 作為主程式入口
+**統一現代化架構**:
+- `src/` 目錄：完整的模組化架構 (v3.2.0) - **當前使用**
+- `main.py`：主程式入口點，完整功能實現
+- 不再有舊架構或 `main_old.py`，專案已完成現代化重構
 
 
 ## 🏗️ 核心架構與設計模式
@@ -134,23 +134,27 @@ if new_x < -WORLD_BOUNDARY or new_x > WORLD_BOUNDARY:
 ```bash
 cd SurvivalRealm
 
-# 主遊戲執行 (目前使用舊版本)
-python main_old.py               # 主遊戲 (main.py 目前為空)
-
-# 測試相關
-python tests/test_game_systems.py # 綜合整合測試
-python tests/run_tests.py         # 測試執行器
+# 主遊戲執行
+python main.py                    # 主遊戲入口點
 
 # 快速功能測試腳本 - 無圖形界面測試
-python -c "from main_old import Game; game = Game(); print('✅ 遊戲初始化成功')"
+python -c "from main import Game; game = Game(); print('✅ 遊戲初始化成功')"
 
-# 洞穴系統測試 (最近更新)
+# 洞穴系統測試
 python -c "
 from src.world.cave_system import cave_system
 from src.core.config import CAVE_CONFIG
 print('🕳️ 洞穴系統：最大深度 %d 層' % CAVE_CONFIG['max_depth'])
 room = cave_system._generate_cave_room(10)
 print('第10層房間：怪物 %d 個，寶物 %d 個' % (len(room.monsters), len(room.treasures)))
+"
+
+# 相機系統測試
+python -c "
+from src.systems.camera import camera
+print('📷 相機系統初始化完成')
+camera.update(100, 200, 0.016)
+print('相機位置:', camera.world_x, camera.world_y)
 "
 ```
 
@@ -162,14 +166,14 @@ print('第10層房間：怪物 %d 個，寶物 %d 個' % (len(room.monsters), le
 - `📷 相機系統：玩家移動到 (150.5, -200.3)` (相機跟隨除錯)
 - `🧱 測試洞穴邊界系統...` (洞穴邊界測試記錄)
 
-**重要提醒**: 由於架構過渡期，部分功能可能同時存在於兩個架構中。優先使用 `src/` 目錄下的新架構進行開發。
+**重要提醒**: 專案已完成現代化重構，統一使用 `src/` 目錄下的新架構進行開發。
 
 ### 關鍵整合點
 
 **添加物品** (4步驟流程):
 1. 在 `src/systems/inventory.py ItemDatabase._initialize_items()` 中定義，附帶 ItemType 枚舉
 2. 將製作配方添加到 `src/core/config.py ITEM_RECIPES` 字典
-3. 更新 `main_old.py _craft_item()` 方法中的製作邏輯  
+3. 更新 `main.py _craft_item()` 方法中的製作邏輯  
 4. 如需要則添加到 UI 製作清單
 
 **添加世界物件**:
@@ -186,7 +190,7 @@ print('第10層房間：怪物 %d 個，寶物 %d 個' % (len(room.monsters), le
 **相機系統整合** (重要！):
 - 所有 `GameObject` 子類必須實作 `draw(screen, camera_x, camera_y)` 方法
 - 世界物件座標轉換：`screen_x = world_x - camera_x + screen_center_x`
-- 在 `main_old.py` 中：`self.camera = camera` (全域單例)
+- 在 `main.py` 中：`self.camera = camera` (全域單例)
 - 相機更新：`self.camera.update(player_center_x, player_center_y, delta_time)`
 
 ### 關鍵慣例
@@ -269,7 +273,7 @@ print('第10層房間：怪物 %d 個，寶物 %d 個' % (len(room.monsters), le
 - 照明工具：火把 (消耗品) 或洞穴燈 (永久)
 - 按 `L` 鍵使用照明工具
 
-**洞穴整合**: 在 `main_old.py` 中：
+**洞穴整合**: 在 `main.py` 中：
 ```python
 from src.world.cave_system import cave_system
 self.cave_system = cave_system
@@ -281,14 +285,14 @@ self.pending_cave_entry = None  # 管理洞穴進入狀態
 ### 🔧 架構過渡期特殊注意事項
 
 **主程式檔案狀態**:
-- `main.py` 目前為空檔案，所有功能在 `main_old.py`
-- 開發時使用 `python main_old.py` 執行遊戲
+- `main.py` 為當前主程式入口點，包含完整遊戲功能
+- 開發時使用 `python main.py` 執行遊戲
 - 所有相對導入路徑指向 `src/` 新架構
-- Game 類在 `main_old.py` 中，管理所有系統初始化
+- Game 類在 `main.py` 中，管理所有系統初始化
 
 **模組導入模式**:
 ```python
-# 標準導入模式（在 main_old.py 中）
+# 標準導入模式（在 main.py 中）
 from src.core.config import WINDOW_CONFIG, COLORS, GameState
 from src.systems.inventory import item_database
 from src.world.cave_system import cave_system
@@ -301,20 +305,16 @@ from src.systems.camera import camera  # 單例相機系統
 - 相機系統使用動態螢幕中心：`screen_center_x/y = width//2, height//2`
 
 ### 測試架構 (重構後)
-- **統一測試工具**: `tests/test_utils.py` 提供 `TestGameBase` 基類和共用函數
-- **避免重複程式碼**: 所有測試繼承 `TestGameBase`，統一環境設置
-- **共用製作邏輯**: `craft_item_safely()` 方法處理完整的製作流程
-- **一致性檢查**: `print_current_state()` 統一狀態除錯輸出格式
-- **快速初始化測試**: 使用 `TestGameBase` 可在秒內建立完整測試環境
+- **測試功能已簡化**: 使用 Python 測試腳本進行快速驗證
+- **系統測試**: `python -c "from main import Game; game = Game()"` 驗證初始化
+- **模組測試**: 直接導入測試特定系統功能 
+- **相機測試**: `from src.systems.camera import camera` 測試相機系統
+- **洞穴測試**: `from src.world.cave_system import cave_system` 測試洞穴功能
 
-**測試檔案結構**:
+**快速測試模式**:
 ```python
-# 標準測試模式
-class TestExample(TestGameBase):
-    def test_feature(self):
-        # 環境已準備就緒，直接測試
-        success = self.craft_item_safely("axe", expected_items=[("wood", 3)])
-        assert success
+# 標準系統初始化測試
+python -c "from main import Game; print('✅ 遊戲系統正常')"
 ```
 
 ### 架構陷阱
@@ -356,34 +356,33 @@ class TestExample(TestGameBase):
 
 ### ⚡ 最重要的檔案 (開發優先級)
 
-1. **`main_old.py`** - 主程式入口點 (目前 `main.py` 為空)
+1. **`main.py`** - 主程式入口點，完整功能實現
 2. **`src/core/config.py`** - 所有遊戲參數和配置
 3. **`src/systems/inventory.py`** - 物品系統管理
 4. **`src/world/world_manager.py`** - 世界物件生成和管理
 5. **`src/world/cave_system.py`** - 洞穴探險系統
-6. **`tests/test_utils.py`** - 統一測試基礎
+6. **`src/systems/camera.py`** - 相機跟隨系統
 
 ### ⚡ 常用開發命令
 
 ```bash
 # 執行遊戲
-python main_old.py
+python main.py
 
 # 快速測試系統是否正常
-python -c "from main_old import Game; game = Game()"
-
-# 執行完整測試
-python tests/run_tests.py
+python -c "from main import Game; game = Game()"
 
 # 測試洞穴系統
 python -c "from src.world.cave_system import cave_system; print('洞穴系統正常')"
+
+# 測試相機系統
+python -c "from src.systems.camera import camera; print('相機系統正常')"
 ```
 
 ### ⚡ 架構陷阱速查
 
-- ❌ 不要使用 `main.py`，使用 `main_old.py`
-- ❌ 不要硬編碼數值，使用 `config.py` 常數
 - ❌ 不要忘記 `TYPE_CHECKING` 處理循環引用
+- ❌ 不要硬編碼數值，使用 `config.py` 常數
 - ❌ 不要使用玩家左上角座標，使用中心點計算距離
 - ✅ 所有系統都要有 `update(delta_time)` 和 `draw()` 方法
 - ✅ 相機系統中所有物件繪製需要座標轉換
