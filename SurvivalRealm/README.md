@@ -57,8 +57,8 @@ SurvivalRealm/
 │
 ├── src/                      # 📦 舊版程式碼（暫時保留）
 ├── assets/                   # 🎨 遊戲素材
-│   ├── music/                #     背景音樂
-│   └── sounds/               #     音效檔案
+│   ├── sounds/               #     音樂和音效檔案（統一管理）
+│   └── sprites/              #     圖像和精靈檔案
 ├── tests/                    # 🧪 測試檔案
 └── docs/                     # 📚 文檔目錄
 ```

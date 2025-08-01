@@ -528,10 +528,10 @@ AUDIO_CONFIG = {
 
 MUSIC_CONFIG = {
     "music_files": {
-        "main_theme": "assets/music/minecraft_background.wav",  # C418 Minecraft 音樂
-        "menu_theme": "assets/music/minecraft_background.wav",  # 主選單音樂
-        "night_theme": "assets/music/minecraft_night.wav",  # 夜間音樂
-        "background_music": "assets/music/minecraft_background.wav",  # 預設背景音樂
+        "main_theme": "assets/sounds/minecraft_background.wav",  # C418 Minecraft 音樂
+        "menu_theme": "assets/sounds/minecraft_background.wav",  # 主選單音樂
+        "night_theme": "assets/sounds/minecraft_night.wav",  # 夜間音樂
+        "background_music": "assets/sounds/minecraft_background.wav",  # 預設背景音樂
     },
     "volume": {
         "master": 0.7,
