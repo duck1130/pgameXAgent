@@ -66,3 +66,7 @@ Thumbs.db
 *.tmp
 *.temp
 *.log
+
+# 素材檔案 - 明確允許上傳
+!assets/
+!assets/**
