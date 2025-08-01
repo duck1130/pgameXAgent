@@ -42,7 +42,7 @@ class Tree(GameObject):
             try:
                 # 載入 field_forest_16×16.png 材質
                 cls._tree_image = pygame.image.load(
-                    "field_forest_16×16.png"
+                    "assets/sprites/terrain/field_forest_16×16.png"
                 ).convert_alpha()
                 # 縮放到樹的大小
                 tree_size = WORLD_OBJECTS["tree"]["size"]
@@ -141,7 +141,7 @@ class Rock(GameObject):
             try:
                 # 載入 field_mountain_02_16×16px.png 材質
                 cls._rock_image = pygame.image.load(
-                    "field_mountain_02_16×16px.png"
+                    "assets/sprites/terrain/field_mountain_02_16×16px.png"
                 ).convert_alpha()
                 # 縮放到石頭的大小
                 rock_size = WORLD_OBJECTS["rock"]["size"]
@@ -270,32 +270,67 @@ class Food(GameObject):
 class River(GameObject):
     """河流物件 - 可取水"""
 
+    # 類級別的圖像快取，避免重複載入
+    _river_image = None
+    _image_loaded = False
+
     def __init__(self, x: float, y: float):
         size = WORLD_OBJECTS["river"]["size"]
         super().__init__(x, y, size[0], size[1])
+        self._load_river_image()
+
+    @classmethod
+    def _load_river_image(cls):
+        """載入河流材質圖像"""
+        if not cls._image_loaded:
+            try:
+                # 載入 river.png 材質
+                cls._river_image = pygame.image.load(
+                    "assets/sprites/terrain/river.png"
+                ).convert_alpha()
+                # 縮放到河流的大小
+                river_size = WORLD_OBJECTS["river"]["size"]
+                cls._river_image = pygame.transform.scale(cls._river_image, river_size)
+                cls._image_loaded = True
+                print("✅ 成功載入河流材質: river.png")
+            except (pygame.error, FileNotFoundError) as e:
+                print(f"❌ 載入河流材質失敗: {e}")
+                cls._river_image = None
+                cls._image_loaded = True
 
     def draw(self, screen: pygame.Surface) -> None:
         """繪製河流"""
         if not self.active:
             return
 
-        color = WORLD_OBJECTS["river"]["color"]
-        # 河流主體
-        pygame.draw.ellipse(screen, color, self.rect)
+        # 使用材質圖像繪製河流
+        if self._river_image is not None:
+            screen.blit(self._river_image, (int(self.x), int(self.y)))
+        else:
+            # 如果載入材質失敗，使用原來的繪製方式
+            color = WORLD_OBJECTS["river"]["color"]
+            # 河流主體
+            pygame.draw.ellipse(screen, color, self.rect)
 
-        # 水流效果 - 簡單的波紋
-        wave_color = (30, 144, 255)
-        for i in range(3):
-            wave_rect = pygame.Rect(self.x + i * 20, self.y + 20, 80, 20)
-            pygame.draw.ellipse(screen, wave_color, wave_rect)
+            # 水流效果 - 簡單的波紋
+            wave_color = (30, 144, 255)
+            for i in range(3):
+                wave_rect = pygame.Rect(self.x + i * 20, self.y + 20, 80, 20)
+                pygame.draw.ellipse(screen, wave_color, wave_rect)
 
     def interact(self, player: "Player") -> Optional[Dict]:
         """取水互動"""
         if not self.active:
             return None
 
+        # 導入音效管理器
+        from ..systems.sound_manager import sound_manager
+
         # 檢查是否有木桶
         has_bucket = player.inventory.has_item("bucket", 1)
+
+        # 播放喝水音效
+        sound_manager.play_drink_water_sound()
 
         player.drink_water(has_bucket)
 

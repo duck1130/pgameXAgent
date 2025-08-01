@@ -6,16 +6,17 @@
 
 ### 🚨 重要架構提醒
 
-**統一現代化架構**:
+**統一現代化架構** (已驗證 ✅):
 - `src/` 目錄：完整的模組化架構 (v3.2.0) - **當前使用**
-- `main.py`：主程式入口點，完整功能實現
+- `main.py`：主程式入口點，完整功能實現，系統初始化正常
 - 不再有舊架構或 `main_old.py`，專案已完成現代化重構
-- 全螢幕模式預設啟用：`WINDOW_CONFIG["fullscreen"]: True`
+- 全螢幕模式預設啟用：`WINDOW_CONFIG["fullscreen"]: True` (實測：1440x900)
 
 **虛擬環境狀態**:
 - 專案包含 `.venv/` 虛擬環境，已安裝 Pygame 2.6.1
-- 開發前先啟用：`source .venv/bin/activate`
+- 開發前先啟用：`source .venv/bin/activate` (macOS/Linux) 或 `.venv\Scripts\activate` (Windows)
 - Python 版本：3.13.5
+- 狀態：已測試，系統初始化正常 ✅
 
 
 ## 🏗️ 核心架構與設計模式
@@ -169,10 +170,11 @@ python main.py                    # 主遊戲入口點
 
 # 快速功能測試腳本 - 驗證系統導入
 python -c "from main import Game; game = Game(); print('✅ 遊戲初始化成功')"
+```
 
 ### 測試與驗證
 
-目前專案採用輕量級測試方式：
+目前專案採用輕量級測試方式，已驗證運行正常 ✅：
 
 ```bash
 # 主遊戲執行
@@ -199,13 +201,14 @@ print('✅ 所有核心模組導入成功')
 "
 ```
 
-**除錯功能**: 遊戲打印大量狀態轉換記錄：
+**除錯功能**: 遊戲打印大量狀態轉換記錄，便於開發調試：
 - `🔄 狀態變化: PLAYING -> CRAFTING` (狀態變化)
 - `🎯 調試：收到數字鍵 4，當前狀態: CRAFTING` (輸入除錯)
 - 製作嘗試前的材料/物品欄狀態
 - `🕳️ 洞穴系統：進入深度 2，生成 3 個怪物` (洞穴除錯)
 - `📷 相機系統：玩家移動到 (150.5, -200.3)` (相機跟隨除錯)
 - `🧱 測試洞穴邊界系統...` (洞穴邊界測試記錄)
+- 系統初始化會顯示詳細的載入過程和字體發現狀況
 
 **重要提醒**: 專案已完成現代化重構，統一使用 `src/` 目錄下的新架構進行開發。
 
@@ -351,11 +354,12 @@ from src.systems.camera import camera  # 單例相機系統
 - **模組測試**: 直接導入測試特定系統功能 
 - **相機測試**: `from src.systems.camera import camera` 測試相機系統
 - **洞穴測試**: `from src.world.cave_system import cave_system` 測試洞穴功能
+- **已驗證狀態**: 所有核心模組導入正常，系統初始化成功 ✅
 
 **快速測試模式**:
-```python
+```bash
 # 標準系統初始化測試
-python -c "from main import Game; print('✅ 遊戲系統正常')"
+python -c "from main import Game; game = Game(); print('✅ 遊戲系統正常')"
 ```
 
 ### 架構陷阱

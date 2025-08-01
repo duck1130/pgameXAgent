@@ -344,12 +344,29 @@ class Player:
         if result:
             self.last_interaction = current_time
 
+            # 檢查是否是寶箱互動，播放開箱音效 📦
+            from ..world.world_objects import Chest
+
+            if (
+                isinstance(closest_obj, Chest)
+                and isinstance(result, dict)
+                and "items" in result
+            ):
+                from ..systems.sound_manager import sound_manager
+
+                sound_manager.play_chest_open_sound()
+
             # 檢查是否是洞穴入口互動
             if isinstance(result, dict) and result.get("cave_entry"):
                 return result  # 返回完整的字典用於洞穴處理
 
             # 處理獲得的物品
             if isinstance(result, dict) and "items" in result:
+                # 🎵 播放撿取音效（食物和寶箱物品）
+                from ..systems.sound_manager import sound_manager
+
+                sound_manager.play_pickup_sound()
+
                 for item_id, quantity in result["items"]:
                     item = item_database.get_item(item_id)
                     if item:
@@ -465,6 +482,12 @@ class Player:
         Args:
             food_type (str): 食物類型
         """
+        # 導入音效管理器
+        from ..systems.sound_manager import sound_manager
+
+        # 播放吃食物音效
+        sound_manager.play_eat_food_sound()
+
         # 恢復飢餓值的食物
         hunger_recovery = {"food": 30, "berry": 15, "mushroom": 25, "fruit": 20}
 
@@ -659,8 +682,16 @@ class Player:
         Returns:
             int: 實際受到的傷害
         """
+        # 導入音效管理器
+        from ..systems.sound_manager import sound_manager
+
         # 計算防禦減免
         actual_damage = max(1, damage - self.defense)
+
+        # 只有實際造成大於0的傷害時才播放音效
+        if actual_damage > 0:
+            sound_manager.play_player_hurt_sound()
+
         self.survival_stats.health = max(0, self.survival_stats.health - actual_damage)
         return actual_damage
 

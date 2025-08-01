@@ -46,7 +46,9 @@ class Game:
 
         # 載入草地材質
         try:
-            self.grass_texture = pygame.image.load("field_grass_16×16.png")
+            self.grass_texture = pygame.image.load(
+                "assets/sprites/terrain/field_grass_16×16.png"
+            )
             self.grass_size = 16  # 草地磚的大小
             print("✅ 成功載入草地材質！")
         except pygame.error as e:
@@ -270,6 +272,9 @@ class Game:
 
                                 # 處理物品掉落
                                 if "items" in result:
+                                    # 🎵 播放撿取音效
+                                    self.sound_manager.play_pickup_sound()
+
                                     for item_id, amount in result["items"]:
                                         # 特殊處理深度鑰匙
                                         if item_id == "depth_key":

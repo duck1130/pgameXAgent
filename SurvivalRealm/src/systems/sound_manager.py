@@ -186,6 +186,18 @@ class SoundManager:
         """播放寶箱開啟音效"""
         return self.play_sound("chest_open")
 
+    def play_drink_water_sound(self) -> bool:
+        """播放喝水音效"""
+        return self.play_sound("drink_water")
+
+    def play_eat_food_sound(self) -> bool:
+        """播放吃食物音效"""
+        return self.play_sound("eat_food")
+
+    def play_player_hurt_sound(self) -> bool:
+        """播放玩家受傷音效"""
+        return self.play_sound("player_hurt")
+
     def play_break_sound(self, material_type: str = "stone") -> bool:
         """
         播放破壞音效

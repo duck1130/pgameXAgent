@@ -524,17 +524,23 @@ AUDIO_CONFIG = {
         "interact": "assets/sounds/minecraft/entity_item_pickup.wav",
         "craft": "assets/sounds/minecraft/block_note_block_pling.wav",
         "attack": "assets/sounds/minecraft/block_stone_hit1.wav",
-        "pickup": "assets/sounds/minecraft/entity_item_pickup.wav",
+        "pickup": "assets/sounds/pick_from_bush2.ogg",  # 🌿 撿物品音效
         "footstep": "assets/sounds/grass6.ogg",  # 🦶 玩家移動腳步聲
-        "chest_open": "assets/sounds/minecraft/block_chest_open.wav",
+        "chest_open": "assets/sounds/open.ogg",  # 📦 寶箱開啟音效
         "stone_break": "assets/sounds/minecraft/block_stone_break1.wav",
         "wood_break": "assets/sounds/minecraft/block_wood_break1.wav",
         # 🗡️ 劍類攻擊音效
-        "sword_whoosh": "Sword_whoosh_1.mp3",  # 揮劍音效
-        "sword_hit": "Sword_slash_2.mp3",  # 砍中怪物音效
-        "tree_break": "break2.ogg",  # 砍樹音效
+        "sword_whoosh": "assets/sounds/Sword_whoosh_1.mp3",  # 揮劍音效
+        "sword_hit": "assets/sounds/Sword_slash_2.mp3",  # 砍中怪物音效
+        "tree_break": "assets/sounds/break2.ogg",  # 砍樹音效
         # ⛏️ 挖礦音效
-        "mining": "stone1.ogg",  # 挖礦音效
+        "mining": "assets/sounds/stone1.ogg",  # 挖礦音效
+        # 💧 喝水音效
+        "drink_water": "assets/sounds/drink_potion.ogg",  # 喝水音效
+        # 🍎 吃食物音效
+        "eat_food": "assets/sounds/eat1.ogg",  # 吃食物音效
+        # 💔 受傷音效
+        "player_hurt": "assets/sounds/berrybush_hurt1.ogg",  # 玩家受傷音效
     },
     # 音效播放控制
     "footstep_interval": 0.4,  # 腳步聲播放間隔（秒）
