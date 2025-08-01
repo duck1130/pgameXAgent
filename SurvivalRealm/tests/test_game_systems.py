@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🧪 Survival Realm 遊戲系統整合測試
+測試: Survival Realm 遊戲系統整合測試
 測試製作系統、怪物系統和完整遊戲場景
 
 作者: 硬漢貓咪開發團隊 🐱
@@ -33,7 +33,7 @@ class GameSystemTester(TestGameBase):
         """初始化測試環境"""
         super().__init__()
         self.time_manager = TimeManager()
-        print("✅ 測試環境初始化完成")
+        print("測試環境初始化完成")
 
     def test_crafting_system(self):
         """測試製作系統"""
@@ -51,7 +51,7 @@ class GameSystemTester(TestGameBase):
             print(f"   製作結果: {message}")
             success = "製作成功" in message
         else:
-            print("   ❌ 材料不足，無法製作工作台")
+            print("   材料不足，無法製作工作台")
             success = False
 
         print_test_result(success, "製作系統測試完成")
@@ -67,19 +67,19 @@ class GameSystemTester(TestGameBase):
         print(f"   當前時段: {self.time_manager.get_time_period_chinese()}")
 
         # 模擬夜晚
-        print("🌙 模擬時間到夜晚")
+        print("夜晚: 模擬時間到夜晚")
         self.time_manager.game_time = 350  # 夜晚
         print(f"   夜晚時間: {self.time_manager.get_time_string()}")
         print(f"   是否夜晚: {self.time_manager.is_night_time()}")
 
         # 測試怪物系統
-        print("👹 測試怪物系統")
+        print("測試怪物系統")
         monster = Monster(200, 200)
         print(f"   怪物生成: 位置 ({monster.x}, {monster.y})")
         print(f"   移動速度: {monster.move_speed}")
 
         # 測試白天怪物死亡
-        print("☀️ 測試白天怪物消散")
+        print("測試白天怪物消散")
         monster.update_slow_movement(0.1, 200, 200, True)  # 白天
         print(f"   開始死亡: {monster.is_dying}")
 
@@ -96,14 +96,14 @@ class GameSystemTester(TestGameBase):
             print(f"   初始狀態: {game.state}")
 
             # 模擬按鍵事件
-            print("🎯 模擬C鍵進入製作模式")
+            print("調試: 模擬C鍵進入製作模式")
             c_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_c)
             pygame.event.post(c_event)
             game.handle_events()
             print(f"   處理後狀態: {game.state}")
 
             # 模擬製作
-            print("🎯 模擬4鍵製作工作台")
+            print("調試: 模擬4鍵製作工作台")
             four_event = pygame.event.Event(pygame.KEYDOWN, key=pygame.K_4)
             pygame.event.post(four_event)
             game.handle_events()
@@ -125,7 +125,7 @@ class GameSystemTester(TestGameBase):
 
     def run_all_tests(self):
         """執行所有測試"""
-        print("🧪 開始遊戲系統整合測試...")
+        print("測試: 開始遊戲系統整合測試...")
 
         tests = [
             self.test_crafting_system,

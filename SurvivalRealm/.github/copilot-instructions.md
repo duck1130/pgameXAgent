@@ -2,7 +2,14 @@
 
 ## 📋 Project Overview
 
-**Survival Realm** 是一款使用 Pygame 開發的 **2D 生存 RPG 遊戲**，採用完全重構的模組化架構 (v3.1.0)。玩家需要收集資源、製作工具、在晝夜循環中對抗怪物並建造建築物。最新版本新增了**相機系統**、洞穴探險系統、主動攻擊怪物 AI 和稀有河流機制。程式碼遵循嚴格的配置驅動設計，具有集中式狀態管理和完整的型別註解。
+**Survival Realm** 是一款使用 Pygame 開發的 **2D 生存 RPG 遊戲**，採用完全重構的模組化架構 (v3.2.0)。玩家需要收集資源、製作工具、在晝夜循環中對抗怪物並建造建築物。最新版本新增了**相機系統**、洞穴探險系統、主動攻擊怪物 AI 和稀有河流機制。程式碼遵循嚴格的配置驅動設計，具有集中式狀態管理和完整的型別註解。
+
+### 🚨 重要架構提醒
+
+**雙重架構並存**: 專案目前存在兩套架構：
+- `src/` 目錄：新的模組化架構 (v3.1.0+) - **推薦使用**
+- `game/` 目錄：舊架構保留作為參考
+- `main.py` 目前為空，使用 `main_old.py` 作為主程式入口
 
 
 ## 🏗️ 核心架構與設計模式
@@ -126,12 +133,25 @@ if new_x < -WORLD_BOUNDARY or new_x > WORLD_BOUNDARY:
 
 ```bash
 cd SurvivalRealm
-python main.py                    # 主遊戲
+
+# 主遊戲執行 (目前使用舊版本)
+python main_old.py               # 主遊戲 (main.py 目前為空)
+
+# 測試相關
 python tests/test_game_systems.py # 綜合整合測試
 python tests/run_tests.py         # 測試執行器
 
 # 快速功能測試腳本 - 無圖形界面測試
-python -c "from main import Game; game = Game(); print('✅ 遊戲初始化成功')"
+python -c "from main_old import Game; game = Game(); print('✅ 遊戲初始化成功')"
+
+# 洞穴系統測試 (最近更新)
+python -c "
+from src.world.cave_system import cave_system
+from src.core.config import CAVE_CONFIG
+print('🕳️ 洞穴系統：最大深度 %d 層' % CAVE_CONFIG['max_depth'])
+room = cave_system._generate_cave_room(10)
+print('第10層房間：怪物 %d 個，寶物 %d 個' % (len(room.monsters), len(room.treasures)))
+"
 ```
 
 **除錯功能**: 遊戲打印大量狀態轉換記錄：
@@ -140,22 +160,25 @@ python -c "from main import Game; game = Game(); print('✅ 遊戲初始化成�
 - 製作嘗試前的材料/物品欄狀態
 - `🕳️ 洞穴系統：進入深度 2，生成 3 個怪物` (洞穴除錯)
 - `📷 相機系統：玩家移動到 (150.5, -200.3)` (相機跟隨除錯)
+- `🧱 測試洞穴邊界系統...` (洞穴邊界測試記錄)
+
+**重要提醒**: 由於架構過渡期，部分功能可能同時存在於兩個架構中。優先使用 `src/` 目錄下的新架構進行開發。
 
 ### 關鍵整合點
 
 **添加物品** (4步驟流程):
-1. 在 `inventory.py ItemDatabase._initialize_items()` 中定義，附帶 ItemType 枚舉
-2. 將製作配方添加到 `config.py ITEM_RECIPES` 字典
-3. 更新 `main.py _craft_item()` 方法中的製作邏輯  
+1. 在 `src/systems/inventory.py ItemDatabase._initialize_items()` 中定義，附帶 ItemType 枚舉
+2. 將製作配方添加到 `src/core/config.py ITEM_RECIPES` 字典
+3. 更新 `main_old.py _craft_item()` 方法中的製作邏輯  
 4. 如需要則添加到 UI 製作清單
 
 **添加世界物件**:
-1. 在 `world/world_objects.py` 中創建繼承 `GameObject` 的類
+1. 在 `src/world/world_objects.py` 中創建繼承 `GameObject` 的類
 2. 實作抽象的 `draw()` 和 `interact()` 方法  
-3. 將生成配置添加到 `config.py WORLD_OBJECTS`，包含 spawn_rate/color/size
-4. 在 `WorldManager._spawn_object()` 中註冊並在 world_manager.py 中引入
+3. 將生成配置添加到 `src/core/config.py WORLD_OBJECTS`，包含 spawn_rate/color/size
+4. 在 `src/world/world_manager.py _spawn_object()` 中註冊並引入類別
 
-**UI 變更**: 所有渲染都集中在 `ui/user_interface.py`：
+**UI 變更**: 所有渲染都集中在 `src/ui/user_interface.py`：
 - 使用強健的 `get_font_config()` 跨平台字體回退
 - 來自 `COLORS` 字典的語義化顏色鍵
 - 具錯誤處理的多字體載入
@@ -163,7 +186,7 @@ python -c "from main import Game; game = Game(); print('✅ 遊戲初始化成�
 **相機系統整合** (重要！):
 - 所有 `GameObject` 子類必須實作 `draw(screen, camera_x, camera_y)` 方法
 - 世界物件座標轉換：`screen_x = world_x - camera_x + screen_center_x`
-- 在 `main.py` 中：`self.camera = camera` (全域單例)
+- 在 `main_old.py` 中：`self.camera = camera` (全域單例)
 - 相機更新：`self.camera.update(player_center_x, player_center_y, delta_time)`
 
 ### 關鍵慣例
@@ -246,14 +269,36 @@ python -c "from main import Game; game = Game(); print('✅ 遊戲初始化成�
 - 照明工具：火把 (消耗品) 或洞穴燈 (永久)
 - 按 `L` 鍵使用照明工具
 
-**洞穴整合**: 在 `main.py` 中：
+**洞穴整合**: 在 `main_old.py` 中：
 ```python
 from src.world.cave_system import cave_system
 self.cave_system = cave_system
 self.pending_cave_entry = None  # 管理洞穴進入狀態
 ```
 
-##  常見問題與解決方案
+## 常見問題與解決方案
+
+### 🔧 架構過渡期特殊注意事項
+
+**主程式檔案狀態**:
+- `main.py` 目前為空檔案，所有功能在 `main_old.py`
+- 開發時使用 `python main_old.py` 執行遊戲
+- 所有相對導入路徑指向 `src/` 新架構
+- Game 類在 `main_old.py` 中，管理所有系統初始化
+
+**模組導入模式**:
+```python
+# 標準導入模式（在 main_old.py 中）
+from src.core.config import WINDOW_CONFIG, COLORS, GameState
+from src.systems.inventory import item_database
+from src.world.cave_system import cave_system
+from src.systems.camera import camera  # 單例相機系統
+```
+
+**全螢幕配置**:
+- 遊戲預設啟用全螢幕模式 (`WINDOW_CONFIG["fullscreen"]: True`)
+- 視窗尺寸動態偵測：`WINDOW_CONFIG["width/height"]` 由系統設定
+- 相機系統使用動態螢幕中心：`screen_center_x/y = width//2, height//2`
 
 ### 測試架構 (重構後)
 - **統一測試工具**: `tests/test_utils.py` 提供 `TestGameBase` 基類和共用函數
@@ -305,4 +350,45 @@ class TestExample(TestGameBase):
 - **跨平台感知**: 字體/路徑處理考慮 Windows/macOS/Linux 差異
 - **文檔字串完整性**: 所有方法都有 Args/Returns/Raises 文檔
 
-````
+---
+
+## 🚀 快速開發參考
+
+### ⚡ 最重要的檔案 (開發優先級)
+
+1. **`main_old.py`** - 主程式入口點 (目前 `main.py` 為空)
+2. **`src/core/config.py`** - 所有遊戲參數和配置
+3. **`src/systems/inventory.py`** - 物品系統管理
+4. **`src/world/world_manager.py`** - 世界物件生成和管理
+5. **`src/world/cave_system.py`** - 洞穴探險系統
+6. **`tests/test_utils.py`** - 統一測試基礎
+
+### ⚡ 常用開發命令
+
+```bash
+# 執行遊戲
+python main_old.py
+
+# 快速測試系統是否正常
+python -c "from main_old import Game; game = Game()"
+
+# 執行完整測試
+python tests/run_tests.py
+
+# 測試洞穴系統
+python -c "from src.world.cave_system import cave_system; print('洞穴系統正常')"
+```
+
+### ⚡ 架構陷阱速查
+
+- ❌ 不要使用 `main.py`，使用 `main_old.py`
+- ❌ 不要硬編碼數值，使用 `config.py` 常數
+- ❌ 不要忘記 `TYPE_CHECKING` 處理循環引用
+- ❌ 不要使用玩家左上角座標，使用中心點計算距離
+- ✅ 所有系統都要有 `update(delta_time)` 和 `draw()` 方法
+- ✅ 相機系統中所有物件繪製需要座標轉換
+- ✅ 狀態變更時記得雙重檢查枚舉和模式標誌
+
+---
+
+*外表硬漢，內心溫柔，代碼專業！這就是硬漢貓咪開發團隊的座右銘！(ˊ・ω・ˋ)* 🐱

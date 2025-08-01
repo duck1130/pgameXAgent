@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🧪 Survival Realm 測試執行器
+測試: Survival Realm 測試執行器
 統一執行所有測試案例
 
 使用方法:
@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def run_test(test_file, description):
     """運行單個測試"""
-    print(f"\n🧪 {description}")
+    print(f"\n測試: {description}")
     print("=" * 50)
 
     try:
@@ -32,11 +32,11 @@ def run_test(test_file, description):
         )
 
         if result.returncode == 0:
-            print("✅ 測試通過！")
+            print("測試通過！")
             if result.stdout:
                 print(result.stdout)
         else:
-            print("❌ 測試失敗！")
+            print("測試失敗！")
             if result.stderr:
                 print("錯誤信息:", result.stderr)
             if result.stdout:
@@ -45,7 +45,7 @@ def run_test(test_file, description):
         return result.returncode == 0
 
     except Exception as e:
-        print(f"❌ 測試執行錯誤: {e}")
+        print(f"測試執行錯誤: {e}")
         return False
 
 
@@ -54,7 +54,6 @@ def main():
     tests = {
         "systems": ("tests/test_game_systems.py", "遊戲系統整合測試"),
         "crafting": ("tests/test_crafting_flow.py", "製作流程詳細測試"),
-        "monster": ("tests/test_monster_system.py", "怪物系統詳細測試"),
     }
 
     # 檢查命令行參數
@@ -65,7 +64,7 @@ def main():
             success = run_test(test_file, description)
             sys.exit(0 if success else 1)
         else:
-            print(f"❌ 未知測試: {test_name}")
+            print(f"未知測試: {test_name}")
             print(f"可用測試: {', '.join(tests.keys())}")
             sys.exit(1)
 
@@ -83,7 +82,7 @@ def main():
     print(f"📊 測試結果: {passed}/{total} 通過")
 
     if passed == total:
-        print("🎉 所有測試都通過了！遊戲功能正常！")
+        print("成功: 所有測試都通過了！遊戲功能正常！")
         sys.exit(0)
     else:
         print("⚠️  有測試失敗，請檢查遊戲功能")

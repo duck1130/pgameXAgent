@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-🛠️ 測試工具模組
+測試工具模組
 提供共用的測試工具函數，避免重複程式碼
 
 作者: 硬漢貓咪開發團隊 🐱
@@ -69,7 +69,7 @@ class TestGameBase:
     def state(self, new_state):
         """設定遊戲狀態（帶調試）"""
         if self._state != new_state:
-            print(f"🔄 狀態變化: {self._state} -> {new_state}")
+            print(f"狀態變化: {self._state} -> {new_state}")
         self._state = new_state
 
     def print_current_state(self):
@@ -79,7 +79,7 @@ class TestGameBase:
         print(f"   製作模式: {self.player.crafting_mode}")
         print(f"   燒製模式: {self.player.smelting_mode}")
 
-        print(f"📦 物品欄內容:")
+        print(f"物品欄內容:")
         for slot_index, item_slot in enumerate(self.player.inventory.slots):
             if item_slot and item_slot.item:
                 print(
@@ -89,13 +89,13 @@ class TestGameBase:
     def craft_item_safely(self, item_id: str) -> str:
         """安全的製作物品邏輯（共用版本）"""
         if item_id not in ITEM_RECIPES:
-            return "❌ 無法製作此物品"
+            return "無法製作此物品"
 
         recipe = ITEM_RECIPES[item_id]
         item = item_database.get_item(item_id)
 
         if not item:
-            return "❌ 物品不存在"
+            return "物品不存在"
 
         # 檢查材料
         missing_materials = []
@@ -105,13 +105,13 @@ class TestGameBase:
                 missing_materials.append(f"{material} (需要{amount}，擁有{owned})")
 
         if missing_materials:
-            return f"❌ 缺少材料: {', '.join(missing_materials)}"
+            return f"缺少材料: {', '.join(missing_materials)}"
 
         # 檢查物品欄空間
         if self.player.inventory.is_full():
             empty_slots = self.player.inventory.get_empty_slots()
             if empty_slots == 0:
-                return "❌ 物品欄已滿，無法製作！請先清理物品欄"
+                return "物品欄已滿，無法製作！請先清理物品欄"
 
         # 消耗材料
         consumed_materials = []
@@ -123,27 +123,27 @@ class TestGameBase:
         added = self.player.inventory.add_item(item, 1)
         if added > 0:
             materials_used = ", ".join(consumed_materials)
-            return f"🎉 製作成功！獲得 [{item.name}] ✨\n消耗材料: {materials_used}"
+            return f"成功: 製作成功！獲得 [{item.name}] \n消耗材料: {materials_used}"
         else:
             # 如果添加失敗，恢復材料
             for material, amount in recipe.items():
                 mat_item = item_database.get_item(material)
                 if mat_item:
                     self.player.inventory.add_item(mat_item, amount)
-            return "❌ 物品欄已滿，製作失敗！材料已退還"
+            return "物品欄已滿，製作失敗！材料已退還"
 
     def enter_crafting_mode(self):
         """進入製作模式"""
         self.player.crafting_mode = True
         self.player.smelting_mode = False
         self.state = GameState.CRAFTING
-        return f"✅ 進入製作模式！狀態: {self.state}"
+        return f"進入製作模式！狀態: {self.state}"
 
     def exit_crafting_mode(self):
         """退出製作模式"""
         self.player.crafting_mode = False
         self.state = GameState.PLAYING
-        return f"❌ 退出製作模式！狀態: {self.state}"
+        return f"退出製作模式！狀態: {self.state}"
 
 
 def cleanup_pygame():
@@ -157,13 +157,13 @@ def cleanup_pygame():
 def print_test_header(title: str):
     """打印測試標題"""
     print(f"\n{'=' * 50}")
-    print(f"🧪 {title}")
+    print(f"測試: {title}")
     print(f"{'=' * 50}")
 
 
 def print_test_result(success: bool, message: str = ""):
     """打印測試結果"""
     if success:
-        print(f"✅ 測試通過！{message}")
+        print(f"測試通過！{message}")
     else:
-        print(f"❌ 測試失敗！{message}")
+        print(f"測試失敗！{message}")
